@@ -1,10 +1,11 @@
-package quadedge
+package tin
 
 import (
+	"fmt"
 	"strconv"
 )
 
-type Edge struct {
+type QuadEdge struct {
 	pool *Pool
 	id   edgeID
 }
@@ -17,7 +18,7 @@ const (
 	quad      edgeID = 0x00000003
 )
 
-func (e Edge) String() string {
+func (e QuadEdge) String() string {
 	if e.id == Nil {
 		return "[no edge]"
 	}
@@ -62,13 +63,13 @@ func (e edgeID) String() string {
 
 func datastring(p *Pool, e edgeID) string {
 	d := p.data[e]
-	if d == Nil {
+	if d == NAN_DATA {
 		return ""
 	}
-	return strconv.Itoa(int(d))
+	return fmt.Sprintf("%.5f-%.5f", d.data[0], d.data[1])
 }
 
-func (e Edge) Pool() *Pool {
+func (e QuadEdge) Pool() *Pool {
 	return e.pool
 }
 
@@ -84,67 +85,67 @@ func (e edgeID) tor() edgeID {
 	return (e & canonical) + ((e + 3) & quad)
 }
 
-func (e Edge) Canonical() Edge {
+func (e QuadEdge) Canonical() QuadEdge {
 	e.id = e.id & canonical
 	return e
 }
 
-func (e Edge) Rot() Edge {
+func (e QuadEdge) Rot() QuadEdge {
 	e.id = (e.id & canonical) + ((e.id + 1) & quad)
 	return e
 }
 
-func (e Edge) Sym() Edge {
+func (e QuadEdge) Sym() QuadEdge {
 	e.id = (e.id & canonical) + ((e.id + 2) & quad)
 	return e
 }
 
-func (e Edge) Tor() Edge {
+func (e QuadEdge) Tor() QuadEdge {
 	e.id = (e.id & canonical) + ((e.id + 3) & quad)
 	return e
 }
 
-func (e Edge) OrigNext() Edge {
+func (e QuadEdge) OrigNext() QuadEdge {
 	e.id = e.pool.next[e.id]
 	return e
 }
 
-func (e Edge) RightNext() Edge {
+func (e QuadEdge) RightNext() QuadEdge {
 	e.id = e.pool.next[e.id.rot()].tor()
 	return e
 }
 
-func (e Edge) DestNext() Edge {
+func (e QuadEdge) DestNext() QuadEdge {
 	e.id = e.pool.next[e.id.sym()].sym()
 	return e
 }
 
-func (e Edge) LeftNext() Edge {
+func (e QuadEdge) LeftNext() QuadEdge {
 	e.id = e.pool.next[e.id.tor()].rot()
 	return e
 }
 
-func (e Edge) OrigPrev() Edge {
+func (e QuadEdge) OrigPrev() QuadEdge {
 	e.id = e.pool.next[e.id.rot()].rot()
 	return e
 }
 
-func (e Edge) RightPrev() Edge {
+func (e QuadEdge) RightPrev() QuadEdge {
 	e.id = e.pool.next[e.id.sym()]
 	return e
 }
 
-func (e Edge) DestPrev() Edge {
+func (e QuadEdge) DestPrev() QuadEdge {
 	e.id = e.pool.next[e.id.tor()].tor()
 	return e
 }
 
-func (e Edge) LeftPrev() Edge {
+func (e QuadEdge) LeftPrev() QuadEdge {
 	e.id = e.pool.next[e.id].sym()
 	return e
 }
 
-func (e Edge) OrigLoop(visit func(e Edge)) {
+func (e QuadEdge) OrigLoop(visit func(e QuadEdge)) {
 	f := e.id
 	for e.id != Nil {
 		visit(e)
@@ -155,7 +156,7 @@ func (e Edge) OrigLoop(visit func(e Edge)) {
 	}
 }
 
-func (e Edge) RightLoop(visit func(e Edge)) {
+func (e QuadEdge) RightLoop(visit func(e QuadEdge)) {
 	f := e.id
 	for e.id != Nil {
 		visit(e)
@@ -166,7 +167,7 @@ func (e Edge) RightLoop(visit func(e Edge)) {
 	}
 }
 
-func (e Edge) DestLoop(visit func(e Edge)) {
+func (e QuadEdge) DestLoop(visit func(e QuadEdge)) {
 	f := e.id
 	for e.id != Nil {
 		visit(e)
@@ -177,7 +178,7 @@ func (e Edge) DestLoop(visit func(e Edge)) {
 	}
 }
 
-func (e Edge) LeftLoop(visit func(e Edge)) {
+func (e QuadEdge) LeftLoop(visit func(e QuadEdge)) {
 	f := e.id
 	for e.id != Nil {
 		visit(e)
@@ -188,7 +189,7 @@ func (e Edge) LeftLoop(visit func(e Edge)) {
 	}
 }
 
-func (e Edge) SameRing(o Edge) bool {
+func (e QuadEdge) SameRing(o QuadEdge) bool {
 	f := e.id
 	for e.id != Nil {
 		if e.id == o.id {
@@ -202,47 +203,47 @@ func (e Edge) SameRing(o Edge) bool {
 	return false
 }
 
-func (e Edge) Orig() uint32 {
-	return e.pool.data[e.id]
+func (e QuadEdge) Orig() [2]float64 {
+	return e.pool.data[e.id].data
 }
 
-func (e Edge) SetOrig(data uint32) {
-	e.pool.data[e.id] = data
+func (e QuadEdge) SetOrig(data [2]float64) {
+	e.pool.data[e.id].data = data
 }
 
-func (e Edge) Right() uint32 {
-	return e.pool.data[e.id.rot()]
+func (e QuadEdge) Right() [2]float64 {
+	return e.pool.data[e.id.rot()].data
 }
 
-func (e Edge) SetRight(data uint32) {
-	e.pool.data[e.id.rot()] = data
+func (e QuadEdge) SetRight(data [2]float64) {
+	e.pool.data[e.id.rot()].data = data
 }
 
-func (e Edge) Dest() uint32 {
-	return e.pool.data[e.id.sym()]
+func (e QuadEdge) Dest() [2]float64 {
+	return e.pool.data[e.id.sym()].data
 }
 
-func (e Edge) SetDest(data uint32) {
-	e.pool.data[e.id.sym()] = data
+func (e QuadEdge) SetDest(data [2]float64) {
+	e.pool.data[e.id.sym()].data = data
 }
 
-func (e Edge) Left() uint32 {
-	return e.pool.data[e.id.tor()]
+func (e QuadEdge) Left() [2]float64 {
+	return e.pool.data[e.id.tor()].data
 }
 
-func (e Edge) SetLeft(data uint32) {
-	e.pool.data[e.id.tor()] = data
+func (e QuadEdge) SetLeft(data [2]float64) {
+	e.pool.data[e.id.tor()].data = data
 }
 
-func (e Edge) mark() uint32 {
+func (e QuadEdge) mark() uint32 {
 	return e.pool.marks[e.id>>2]
 }
 
-func (e Edge) setMark(mark uint32) {
+func (e QuadEdge) setMark(mark uint32) {
 	e.pool.marks[e.id>>2] = mark
 }
 
-func (e Edge) Walk(visit func(e Edge)) {
+func (e QuadEdge) Walk(visit func(e QuadEdge)) {
 	if e.id == Nil {
 		return
 	}
@@ -254,9 +255,22 @@ func (e Edge) Walk(visit func(e Edge)) {
 	e.pool.walk(e.id, visit, m)
 }
 
-func (p *Pool) walk(eid edgeID, visit func(e Edge), m uint32) {
+func (e QuadEdge) SetEndPoints(org, dest [2]float64) {
+	e.pool.data[e.id.tor()].data = org
+	e.pool.data[e.id.sym()].data = dest
+}
+
+func (e QuadEdge) SetLeftFace(t interface{}) {
+	e.pool.data[e.id].lface = t
+}
+
+func (e QuadEdge) LeftFace() interface{} {
+	return e.pool.data[e.id].lface
+}
+
+func (p *Pool) walk(eid edgeID, visit func(e QuadEdge), m uint32) {
 	for p.marks[eid>>2] != m {
-		visit(Edge{pool: p, id: eid})
+		visit(QuadEdge{pool: p, id: eid})
 		p.marks[eid>>2] = m
 		p.walk(p.next[eid.sym()], visit, m)
 		eid = p.next[eid]

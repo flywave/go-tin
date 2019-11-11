@@ -46,7 +46,7 @@ type Candidate struct {
 	Z          float64
 	Importance float64
 	Token      int
-	Triangle   *Triangle
+	Triangle   *DelaunayTriangle
 	index      int
 }
 

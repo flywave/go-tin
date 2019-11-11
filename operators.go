@@ -1,6 +1,6 @@
-package quadedge
+package tin
 
-func Splice(a, b Edge) {
+func Splice(a, b QuadEdge) {
 	p := a.pool
 	alpha := p.next[a.id].rot()
 	beta := p.next[b.id].rot()
@@ -10,7 +10,7 @@ func Splice(a, b Edge) {
 	p.next[alpha], p.next[beta] = p.next[beta], p.next[alpha]
 }
 
-func Connect(a, b Edge) Edge {
+func Connect(a, b QuadEdge) QuadEdge {
 	e := New(a.pool)
 	e.SetOrig(a.Dest())
 	e.SetDest(b.Orig())
@@ -19,7 +19,7 @@ func Connect(a, b Edge) Edge {
 	return e
 }
 
-func SwapTriangles(e Edge) {
+func SwapTriangles(e QuadEdge) {
 	a := e.OrigPrev()
 	b := e.Sym().OrigPrev()
 	Splice(e, a)

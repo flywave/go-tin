@@ -54,6 +54,7 @@ func InCircumcircle(a, b, c [2]float64, p [2]float64) bool {
 		((p[1]-c[1])*(b[0]-a[0])+(p[0]-c[0])*(b[1]-a[1]))*
 			((p[0]-a[0])*(b[0]-c[0])-(p[1]-a[1])*(b[1]-c[1]))
 }
+
 func Circumcenter(a, b, c [2]float64) [2]float64 {
 	ba := Minus(b, a)
 	ca := Minus(c, a)

@@ -7,20 +7,14 @@ import (
 
 type trianglePool []*DelaunayTriangle
 
-func (p trianglePool) spawn() *DelaunayTriangle {
-	return NewDelaunayTriangle(p)
-}
-
 type DelaunayTriangle struct {
 	Anchor QuadEdge
 	Next   *DelaunayTriangle
-	id     int
 	pool   trianglePool
 }
 
 func NewDelaunayTriangle(p trianglePool) *DelaunayTriangle {
-	idx := len(p)
-	ptr := &DelaunayTriangle{id: idx, pool: p}
+	ptr := &DelaunayTriangle{pool: p}
 	p = append(p, ptr)
 	return ptr
 }
@@ -71,45 +65,32 @@ func (t *DelaunayTriangle) clear() {
 
 type DelaunayMesh struct {
 	QuadEdges        *Pool
-	Triangles        *trianglePool
+	Triangles        trianglePool
 	startingQuadEdge QuadEdge
 	firstFace        *DelaunayTriangle
 }
 
 func (m *DelaunayMesh) makeFace(e QuadEdge) *DelaunayTriangle {
-	t := m.Triangles.spawn()
+	t := NewDelaunayTriangle(m.Triangles)
 	t.init(e)
 
 	m.firstFace = t.linkTo(m.firstFace)
 	return t
 }
 
-func (m *DelaunayMesh) deleteQuadEdge(e QuadEdge) {
+func (m *DelaunayMesh) delete(e QuadEdge) {
 	Delete(e)
 }
 
 func (m *DelaunayMesh) connect(a QuadEdge, b QuadEdge) QuadEdge {
-	e := New(m.QuadEdges)
-
-	Splice(e, a.LeftNext())
-	Splice(e.Sym(), b)
-
-	e.SetEndPoints(a.Dest(), b.Orig())
-	return e
+	return Connect(a, b)
 }
 
 func (m *DelaunayMesh) swap(e QuadEdge) {
 	f1 := e.LeftFace().(*DelaunayTriangle)
 	f2 := e.Sym().LeftFace().(*DelaunayTriangle)
 
-	a := e.OrigPrev()
-	b := e.Sym().OrigPrev()
-
-	Splice(e, a)
-	Splice(e.Sym(), b)
-	Splice(e, a.LeftNext())
-	Splice(e.Sym(), b.LeftNext())
-	e.SetEndPoints(a.Dest(), b.Dest())
+	SwapTriangles(e)
 
 	f1.reshape(e)
 	f2.reshape(e.Sym())
@@ -215,8 +196,8 @@ func triArea(a, b, c [2]float64) float64 {
 	return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0])
 }
 
-func nextRandomNumber() int {
-	return rand.Int()
+func nextRandomNumber() uint32 {
+	return rand.Uint32() % math.MaxUint32
 }
 
 func (m *DelaunayMesh) locate(x [2]float64, e QuadEdge) QuadEdge {
@@ -286,7 +267,7 @@ func (m *DelaunayMesh) spoke(x [2]float64, e QuadEdge) *QuadEdge {
 			symLface.dontAnchor(e.Sym())
 
 			e = e.OrigPrev()
-			m.deleteQuadEdge(e.OrigNext())
+			m.delete(e.OrigNext())
 		}
 	}
 
@@ -298,7 +279,7 @@ func (m *DelaunayMesh) spoke(x [2]float64, e QuadEdge) *QuadEdge {
 
 	m.startingQuadEdge = base
 	for {
-		base = Connect(e, base.Sym())
+		base = m.connect(e, base.Sym())
 		e = base.OrigPrev()
 		if e.LeftNext() == m.startingQuadEdge {
 			break
@@ -306,7 +287,7 @@ func (m *DelaunayMesh) spoke(x [2]float64, e QuadEdge) *QuadEdge {
 	}
 
 	if boundaryQuadEdge != nil {
-		m.deleteQuadEdge(*boundaryQuadEdge)
+		m.delete(*boundaryQuadEdge)
 	}
 
 	if boundaryQuadEdge != nil {

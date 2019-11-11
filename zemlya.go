@@ -251,13 +251,14 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 			}
 		}
 
-		/**
-			dt_ptr t = _first_face;
-			while (t) {
-			  scan_triangle(t);
-			  t = t->get_link();
+		t := z.firstFace
+		for {
+			z.scanTriangle(t)
+			t = t.GetLink()
+			if t == nil {
+				break
 			}
-		**/
+		}
 
 		for {
 			if z.Candidates.Empty() {
@@ -282,6 +283,58 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	}
 }
 
-func (z *ZemlyaMesh) ScanTriangle() {
+func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
+	var z_plane Plane
+	z_plane = computePlane(z_plane, t, &z.Result)
 
+	byy := [3][2]float64{t.point1(), t.point2(), t.point3()}
+
+	orderTrianglePoints(byy)
+
+	v0_x := byy[0][0]
+	v0_y := byy[0][1]
+	v1_x := byy[1][0]
+	v1_y := byy[1][1]
+	v2_x := byy[2][0]
+	v2_y := byy[2][1]
+
+	candidate := Candidate{X: 0, Y: 0, Z: 0.0, Importance: -math.MaxFloat64, Token: z.Counter, Triangle: t}
+	z.Counter++
+	dx2 := (v2_x - v0_x) / (v2_y - v0_y)
+	noDataValue := z.Raster.NoData.(float64)
+
+	if v1_y != v0_y {
+		dx1 := (v1_x - v0_x) / (v1_y - v0_y)
+
+		x1 := v0_x
+		x2 := v0_x
+
+		starty := int(v0_y)
+		endy := int(v1_y)
+
+		for y := starty; y < endy; y++ {
+			z.scanTriangleLine(z_plane, y, x1, x2, candidate, noDataValue)
+			x1 += dx1
+			x2 += dx2
+		}
+	}
+
+	if v2_y != v1_y {
+		dx1 := (v2_x - v1_x) / (v2_y - v1_y)
+
+		x1 := v1_x
+		x2 := v0_x
+
+		starty := int(v1_y)
+		endy := int(v2_y)
+
+		for y := starty; y <= endy; y++ {
+			z.scanTriangleLine(z_plane, y, x1, x2, candidate, noDataValue)
+			x1 += dx1
+			x2 += dx2
+		}
+	}
+
+	z.Token.SetValue(candidate.Y, candidate.X, int32(candidate.Token))
+	z.Candidates.Push(candidate)
 }

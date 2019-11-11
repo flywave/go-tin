@@ -108,6 +108,18 @@ func isNoData(value, noDataValue float64) bool {
 	return value == math.NaN() || value == noDataValue
 }
 
+func computePlane(plane Plane, t *DelaunayTriangle, raster *RasterDouble) Plane {
+	p1 := t.point1()
+	p2 := t.point2()
+	p3 := t.point3()
+
+	v1 := [3]float64{p1[0], p1[1], raster.Value(int(p1[1]), int(p1[0]))}
+	v2 := [3]float64{p2[0], p2[1], raster.Value(int(p2[1]), int(p2[0]))}
+	v3 := [3]float64{p3[0], p3[1], raster.Value(int(p3[1]), int(p3[0]))}
+
+	return *NewPlane(v1, v2, v3)
+}
+
 type RasterMesh struct {
 	DelaunayMesh
 	Raster RasterDouble

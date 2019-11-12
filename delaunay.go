@@ -59,10 +59,6 @@ func (t *DelaunayTriangle) point3() [2]float64 {
 	return t.Anchor.LeftPrev().Orig()
 }
 
-func (t *DelaunayTriangle) clear() {
-
-}
-
 type DelaunayMesh struct {
 	QuadEdges        *Pool
 	Triangles        trianglePool
@@ -130,6 +126,14 @@ func (m *DelaunayMesh) onQuadEdge(x [2]float64, e QuadEdge) bool {
 	return (math.Abs(l.Eval(x)) < EPS)
 }
 
+func (m *DelaunayMesh) initMeshFromBBox(bb BBox2d) {
+	a := [2]float64{bb[0], bb[1]}
+	d := [2]float64{bb[2], bb[3]}
+	b := [2]float64{bb[2], bb[1]}
+	c := [2]float64{bb[0], bb[3]}
+	m.initMesh(a, b, c, d)
+}
+
 func (m *DelaunayMesh) initMesh(a, b, c, d [2]float64) {
 	ea := New(m.QuadEdges)
 	ea.SetEndPoints(a, b)
@@ -154,7 +158,7 @@ func (m *DelaunayMesh) initMesh(a, b, c, d [2]float64) {
 
 	m.startingQuadEdge = ea
 
-	m.firstFace.clear()
+	m.firstFace = nil
 
 	m.makeFace(ea.Sym())
 	m.makeFace(ec.Sym())

@@ -1,7 +1,5 @@
 package tin
 
-import "math"
-
 type RasterType int
 
 const (
@@ -470,9 +468,4 @@ func (r *RasterInt) GetRow(row int) []int32 {
 		return t[row*r.Cols() : (row+1)*r.Cols()]
 	}
 	return nil
-}
-
-func sampleNearestValidAvg(src *RasterDouble, row, column int,
-	min_averaging_samples int) float64 {
-	return math.NaN()
 }

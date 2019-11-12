@@ -15,6 +15,10 @@ func (v Vertex) Equal(o Vertex) bool {
 	return math.Abs(v[0]-o[0]) < EPS && math.Abs(v[1]-o[1]) < EPS && math.Abs(v[2]-o[2]) < EPS
 }
 
+func VertexEqual(v, o Vertex) bool {
+	return v.Equal(o)
+}
+
 type Triangle [3]Vertex
 
 func (l Triangle) Equal(r Triangle) bool {
@@ -175,6 +179,14 @@ func Max(x, y float64) float64 {
 	return y
 }
 
+func (b BBox2d) Width() float64 {
+	return b[2] - b[0]
+}
+
+func (b BBox2d) Height() float64 {
+	return b[3] - b[1]
+}
+
 func (b *BBox2d) add(p []float64) {
 	(*b)[0] = Min((*b)[0], p[0])
 	(*b)[1] = Min((*b)[1], p[1])
@@ -259,6 +271,18 @@ func (b *BBox3d) add(p []float64) {
 	(*b)[3] = Max((*b)[3], p[0])
 	(*b)[4] = Max((*b)[4], p[1])
 	(*b)[5] = Max((*b)[5], p[2])
+}
+
+func (b BBox3d) Width() float64 {
+	return b[3] - b[0]
+}
+
+func (b BBox3d) Height() float64 {
+	return b[4] - b[1]
+}
+
+func (b BBox3d) Depth() float64 {
+	return b[5] - b[2]
 }
 
 func (b *BBox3d) Add(p interface{}) {

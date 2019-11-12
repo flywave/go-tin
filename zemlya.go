@@ -284,52 +284,52 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 }
 
 func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
-	var z_plane Plane
-	z_plane = computePlane(z_plane, t, &z.Result)
+	var zPlane Plane
+	zPlane = computePlane(zPlane, t, &z.Result)
 
 	byy := [3][2]float64{t.point1(), t.point2(), t.point3()}
 
 	orderTrianglePoints(byy)
 
-	v0_x := byy[0][0]
-	v0_y := byy[0][1]
-	v1_x := byy[1][0]
-	v1_y := byy[1][1]
-	v2_x := byy[2][0]
-	v2_y := byy[2][1]
+	v0X := byy[0][0]
+	v0Y := byy[0][1]
+	v1X := byy[1][0]
+	v1Y := byy[1][1]
+	v2X := byy[2][0]
+	v2Y := byy[2][1]
 
 	candidate := Candidate{X: 0, Y: 0, Z: 0.0, Importance: -math.MaxFloat64, Token: z.Counter, Triangle: t}
 	z.Counter++
-	dx2 := (v2_x - v0_x) / (v2_y - v0_y)
+	dx2 := (v2X - v0X) / (v2Y - v0Y)
 	noDataValue := z.Raster.NoData.(float64)
 
-	if v1_y != v0_y {
-		dx1 := (v1_x - v0_x) / (v1_y - v0_y)
+	if v1Y != v0Y {
+		dx1 := (v1X - v0X) / (v1Y - v0Y)
 
-		x1 := v0_x
-		x2 := v0_x
+		x1 := v0X
+		x2 := v0X
 
-		starty := int(v0_y)
-		endy := int(v1_y)
+		starty := int(v0Y)
+		endy := int(v1Y)
 
 		for y := starty; y < endy; y++ {
-			z.scanTriangleLine(z_plane, y, x1, x2, candidate, noDataValue)
+			z.scanTriangleLine(zPlane, y, x1, x2, candidate, noDataValue)
 			x1 += dx1
 			x2 += dx2
 		}
 	}
 
-	if v2_y != v1_y {
-		dx1 := (v2_x - v1_x) / (v2_y - v1_y)
+	if v2Y != v1Y {
+		dx1 := (v2X - v1X) / (v2Y - v1Y)
 
-		x1 := v1_x
-		x2 := v0_x
+		x1 := v1X
+		x2 := v0X
 
-		starty := int(v1_y)
-		endy := int(v2_y)
+		starty := int(v1Y)
+		endy := int(v2Y)
 
 		for y := starty; y <= endy; y++ {
-			z.scanTriangleLine(z_plane, y, x1, x2, candidate, noDataValue)
+			z.scanTriangleLine(zPlane, y, x1, x2, candidate, noDataValue)
 			x1 += dx1
 			x2 += dx2
 		}
@@ -337,4 +337,57 @@ func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 
 	z.Token.SetValue(candidate.Y, candidate.X, int32(candidate.Token))
 	z.Candidates.Push(candidate)
+}
+
+func (z *ZemlyaMesh) ToMesh() *Mesh {
+	w := z.Raster.Cols()
+	h := z.Raster.Rows()
+
+	var mvertices []Vertex
+	vertexID := NewRasterInt(h, w, 0)
+
+	index := 0
+	noDataValue := z.Raster.NoData.(float64)
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			zv := z.Result.Value(y, x)
+			if !isNoData(zv, noDataValue) {
+				v := Vertex{z.Raster.col2x(x), z.Raster.row2y(y), zv}
+				mvertices = append(mvertices, v)
+				vertexID.SetValue(y, x, int32(index))
+				index++
+			}
+		}
+	}
+
+	var mfaces []Face
+	t := z.firstFace
+	for {
+		var f Face
+
+		p1 := t.point1()
+		p2 := t.point2()
+		p3 := t.point3()
+
+		if !IsCCW(p1, p2, p3) {
+			f[0] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
+			f[1] = VertexIndex(vertexID.Value(int(p2[1]), int(p2[0])))
+			f[2] = VertexIndex(vertexID.Value(int(p3[1]), int(p3[0])))
+		} else {
+			f[0] = VertexIndex(vertexID.Value(int(p3[1]), int(p3[0])))
+			f[1] = VertexIndex(vertexID.Value(int(p2[1]), int(p2[0])))
+			f[2] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
+		}
+
+		mfaces = append(mfaces, f)
+
+		t = t.GetLink()
+		if t == nil {
+			break
+		}
+	}
+
+	mesh := new(Mesh)
+	mesh.initFromDecomposed(mvertices, mfaces)
+	return mesh
 }

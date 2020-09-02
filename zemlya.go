@@ -37,6 +37,12 @@ type ZemlyaMesh struct {
 	MaxLevel     int
 }
 
+func NewZemlyaMesh() *ZemlyaMesh {
+	mesh := &ZemlyaMesh{}
+	mesh.QuadEdges = NewPool(1)
+	return mesh
+}
+
 func (z *ZemlyaMesh) scanTriangleLine(plane Plane, y int, x1, x2 float64, candidate Candidate, noDataValue float64) {
 	startx := int(math.Ceil(Min(x1, x2)))
 	endx := int(math.Floor(Max(x1, x2)))

@@ -8,7 +8,7 @@ import (
 )
 
 func GenerateTinMesh(raster *RasterDouble, maxError float64) *Mesh {
-	g := new(ZemlyaMesh)
+	g := NewZemlyaMesh()
 	g.LoadRaster(raster)
 	g.GreedyInsert(maxError)
 	return g.ToMesh()

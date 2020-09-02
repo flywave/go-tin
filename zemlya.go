@@ -312,7 +312,7 @@ func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 		starty := int(v0Y)
 		endy := int(v1Y)
 
-		for y := starty; y < endy; y++ {
+		for y := starty; y <= endy; y++ {
 			z.scanTriangleLine(zPlane, y, x1, x2, candidate, noDataValue)
 			x1 += dx1
 			x2 += dx2
@@ -348,11 +348,27 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 
 	index := 0
 	noDataValue := z.Raster.NoData.(float64)
+	minx := math.MaxFloat64
+	miny := math.MaxFloat64
+	minz := math.MaxFloat64
+
+	maxx := -math.MaxFloat64
+	maxy := -math.MaxFloat64
+	maxz := -math.MaxFloat64
+
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			zv := z.Result.Value(y, x)
 			if !isNoData(zv, noDataValue) {
 				v := Vertex{z.Raster.col2x(x), z.Raster.row2y(y), zv}
+				minx = math.Min(minx, v[0])
+				miny = math.Min(miny, v[1])
+				minz = math.Min(minz, v[2])
+
+				maxx = math.Max(maxx, v[0])
+				maxy = math.Max(maxx, v[1])
+				maxz = math.Max(maxz, v[2])
+
 				mvertices = append(mvertices, v)
 				vertexID.SetValue(y, x, int32(index))
 				index++
@@ -388,6 +404,8 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	}
 
 	mesh := new(Mesh)
+	mesh.BBox[0] = [3]float64{minx, miny, minz}
+	mesh.BBox[1] = [3]float64{maxx, maxy, maxz}
 	mesh.initFromDecomposed(mvertices, mfaces)
 	return mesh
 }

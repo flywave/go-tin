@@ -8,6 +8,7 @@ type Mesh struct {
 	Vertices  []Vertex
 	Faces     []Face
 	Triangles []Triangle
+	BBox      [2][3]float64
 }
 
 func (m *Mesh) initFromDecomposed(vertices []Vertex, faces []Face) {

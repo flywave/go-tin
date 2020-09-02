@@ -117,6 +117,7 @@ func NewRaster(row, column, dataType int) *Raster {
 	r := Raster{}
 	r.Size = [2]int{row, column}
 	r.Type = int32(dataType)
+	r.NoData = 0.0
 	switch dataType {
 	case RASTER_DATA_TYPE_INT8:
 		r.Data = make([]int8, row*column)
@@ -145,6 +146,8 @@ func NewRaster(row, column, dataType int) *Raster {
 func NewRasterWithData(row, column int, data interface{}) *Raster {
 	r := Raster{}
 	r.Size = [2]int{row, column}
+	r.NoData = 0.0
+
 	switch t := data.(type) {
 	case []int8:
 		r.Type = RASTER_DATA_TYPE_INT8
@@ -356,6 +359,7 @@ func NewRasterDoubleWithData(row, column int, data []float64) *RasterDouble {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_FLOAT64)
 	r.Data = data
+	r.NoData = 0.0
 	return &r
 }
 
@@ -400,6 +404,8 @@ func NewRasterCharWithData(row, column int, data []int8) *RasterChar {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT8)
 	r.Data = data
+	r.NoData = 0.0
+
 	return &r
 }
 
@@ -444,6 +450,8 @@ func NewRasterIntWithData(row, column int, data []int32) *RasterInt {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT32)
 	r.Data = data
+	r.NoData = 0.0
+
 	return &r
 }
 

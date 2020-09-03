@@ -8,7 +8,7 @@ import (
 type trianglePool []*DelaunayTriangle
 
 type DelaunayTriangle struct {
-	Anchor QuadEdge
+	Anchor *QuadEdge
 	Next   *DelaunayTriangle
 	pool   trianglePool
 }
@@ -19,7 +19,7 @@ func NewDelaunayTriangle(p trianglePool) *DelaunayTriangle {
 	return ptr
 }
 
-func (t *DelaunayTriangle) init(e QuadEdge) {
+func (t *DelaunayTriangle) init(e *QuadEdge) {
 	t.reshape(e)
 }
 
@@ -30,17 +30,17 @@ func (t *DelaunayTriangle) linkTo(o *DelaunayTriangle) *DelaunayTriangle {
 
 func (t *DelaunayTriangle) GetLink() *DelaunayTriangle { return t.Next }
 
-func (t *DelaunayTriangle) GetAnchor() QuadEdge {
+func (t *DelaunayTriangle) GetAnchor() *QuadEdge {
 	return t.Anchor
 }
 
-func (t *DelaunayTriangle) dontAnchor(e QuadEdge) {
+func (t *DelaunayTriangle) dontAnchor(e *QuadEdge) {
 	if t.Anchor == e {
 		t.Anchor = e.LeftNext()
 	}
 }
 
-func (t *DelaunayTriangle) reshape(e QuadEdge) {
+func (t *DelaunayTriangle) reshape(e *QuadEdge) {
 	t.Anchor = e
 	e.SetLeftFace(t)
 	e.LeftNext().SetLeftFace(t)
@@ -62,11 +62,12 @@ func (t *DelaunayTriangle) point3() [2]float64 {
 type DelaunayMesh struct {
 	QuadEdges        *Pool
 	Triangles        trianglePool
-	startingQuadEdge QuadEdge
+	startingQuadEdge *QuadEdge
 	firstFace        *DelaunayTriangle
+	scanTriangle     func(*DelaunayTriangle)
 }
 
-func (m *DelaunayMesh) makeFace(e QuadEdge) *DelaunayTriangle {
+func (m *DelaunayMesh) makeFace(e *QuadEdge) *DelaunayTriangle {
 	t := NewDelaunayTriangle(m.Triangles)
 	t.init(e)
 
@@ -74,17 +75,19 @@ func (m *DelaunayMesh) makeFace(e QuadEdge) *DelaunayTriangle {
 	return t
 }
 
-func (m *DelaunayMesh) delete(e QuadEdge) {
-	Delete(e)
+func (m *DelaunayMesh) delete(e *QuadEdge) {
+	Splice(e, e.OrigPrev())
+	Splice(e.Sym(), e.Sym().OrigPrev())
+	e.RecycleNext()
 }
 
-func (m *DelaunayMesh) connect(a QuadEdge, b QuadEdge) QuadEdge {
+func (m *DelaunayMesh) connect(a *QuadEdge, b *QuadEdge) *QuadEdge {
 	return Connect(a, b)
 }
 
-func (m *DelaunayMesh) swap(e QuadEdge) {
-	f1 := e.LeftFace().(*DelaunayTriangle)
-	f2 := e.Sym().LeftFace().(*DelaunayTriangle)
+func (m *DelaunayMesh) swap(e *QuadEdge) {
+	f1 := e.LeftFace()
+	f2 := e.Sym().LeftFace()
 
 	SwapTriangles(e)
 
@@ -92,15 +95,15 @@ func (m *DelaunayMesh) swap(e QuadEdge) {
 	f2.reshape(e.Sym())
 }
 
-func rightOf(p [2]float64, e QuadEdge) bool {
+func rightOf(p [2]float64, e *QuadEdge) bool {
 	return IsCCW(p, e.Dest(), e.Orig())
 }
 
-func leftOf(p [2]float64, e QuadEdge) bool {
+func leftOf(p [2]float64, e *QuadEdge) bool {
 	return IsCCW(p, e.Orig(), e.Dest())
 }
 
-func (m *DelaunayMesh) ccwBoundary(e QuadEdge) bool {
+func (m *DelaunayMesh) ccwBoundary(e *QuadEdge) bool {
 	return !rightOf(e.OrigPrev().Dest(), e)
 }
 
@@ -108,7 +111,7 @@ func sub(x, y [2]float64) []float64 {
 	return []float64{(x[0] - y[0]), (x[1] - y[1])}
 }
 
-func (m *DelaunayMesh) onQuadEdge(x [2]float64, e QuadEdge) bool {
+func (m *DelaunayMesh) onQuadEdge(x [2]float64, e *QuadEdge) bool {
 	t1 := length(sub(x, e.Orig()))
 	t2 := length(sub(x, e.Dest()))
 
@@ -136,22 +139,27 @@ func (m *DelaunayMesh) initMeshFromBBox(bb BBox2d) {
 
 func (m *DelaunayMesh) initMesh(a, b, c, d [2]float64) {
 	ea := New(m.QuadEdges)
+	ea.Init()
 	ea.SetEndPoints(a, b)
 
 	eb := New(m.QuadEdges)
+	eb.Init()
 	Splice(ea.Sym(), eb)
 	eb.SetEndPoints(b, c)
 
 	ec := New(m.QuadEdges)
+	ec.Init()
 	Splice(eb.Sym(), ec)
 	ec.SetEndPoints(c, d)
 
 	ed := New(m.QuadEdges)
+	ed.Init()
 	Splice(ec.Sym(), ed)
 	ed.SetEndPoints(d, a)
 	Splice(ed.Sym(), ea)
 
 	diag := New(m.QuadEdges)
+	diag.Init()
 	Splice(ed.Sym(), diag)
 	Splice(eb.Sym(), diag.Sym())
 	diag.SetEndPoints(a, c)
@@ -164,7 +172,7 @@ func (m *DelaunayMesh) initMesh(a, b, c, d [2]float64) {
 	m.makeFace(ec.Sym())
 }
 
-func (m *DelaunayMesh) isInterior(e QuadEdge) bool {
+func (m *DelaunayMesh) isInterior(e *QuadEdge) bool {
 	return (e.LeftNext().LeftNext().LeftNext() == e &&
 		e.RightNext().RightNext().RightNext() == e)
 }
@@ -174,7 +182,7 @@ func isEqual(v, o [2]float64) bool {
 }
 
 func (m *DelaunayMesh) insert(x [2]float64, tri *DelaunayTriangle) {
-	var e QuadEdge
+	var e *QuadEdge
 	if tri != nil {
 		e = m.locate(x, tri.Anchor)
 	} else {
@@ -191,7 +199,7 @@ func (m *DelaunayMesh) insert(x [2]float64, tri *DelaunayTriangle) {
 	}
 }
 
-func (m *DelaunayMesh) shouldSwap(x [2]float64, e QuadEdge) bool {
+func (m *DelaunayMesh) shouldSwap(x [2]float64, e *QuadEdge) bool {
 	t := e.OrigPrev()
 	return InCircumcircle(e.Orig(), t.Dest(), e.Dest(), x)
 }
@@ -204,7 +212,7 @@ func nextRandomNumber() uint32 {
 	return rand.Uint32() % math.MaxUint32
 }
 
-func (m *DelaunayMesh) locate(x [2]float64, e QuadEdge) QuadEdge {
+func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
 	t := triArea(x, e.Dest(), e.Orig())
 
 	if t > 0 {
@@ -249,22 +257,22 @@ func (m *DelaunayMesh) locate(x [2]float64, e QuadEdge) QuadEdge {
 	}
 }
 
-func (m *DelaunayMesh) spoke(x [2]float64, e QuadEdge) *QuadEdge {
+func (m *DelaunayMesh) spoke(x [2]float64, e *QuadEdge) *QuadEdge {
 	var newFaces [4]*DelaunayTriangle
 	facedex := 0
 
 	var boundaryQuadEdge *QuadEdge
 
-	lface := e.LeftFace().(*DelaunayTriangle)
+	lface := e.LeftFace()
 	lface.dontAnchor(e)
 	newFaces[facedex] = lface
 	facedex++
 
 	if m.onQuadEdge(x, e) {
 		if m.ccwBoundary(e) {
-			boundaryQuadEdge = &e
+			boundaryQuadEdge = e
 		} else {
-			symLface := e.Sym().LeftFace().(*DelaunayTriangle)
+			symLface := e.Sym().LeftFace()
 			newFaces[facedex] = symLface
 			facedex++
 
@@ -291,7 +299,7 @@ func (m *DelaunayMesh) spoke(x [2]float64, e QuadEdge) *QuadEdge {
 	}
 
 	if boundaryQuadEdge != nil {
-		m.delete(*boundaryQuadEdge)
+		m.delete(boundaryQuadEdge)
 	}
 
 	if boundaryQuadEdge != nil {
@@ -314,14 +322,10 @@ func (m *DelaunayMesh) spoke(x [2]float64, e QuadEdge) *QuadEdge {
 		}
 	}
 
-	return &m.startingQuadEdge
+	return m.startingQuadEdge
 }
 
-func (m *DelaunayMesh) scanTriangle(t *DelaunayTriangle) {
-	// noop
-}
-
-func (m *DelaunayMesh) optimize(x [2]float64, s QuadEdge) {
+func (m *DelaunayMesh) optimize(x [2]float64, s *QuadEdge) {
 	startSpoke := s
 	spoke := s
 
@@ -344,7 +348,7 @@ func (m *DelaunayMesh) optimize(x [2]float64, s QuadEdge) {
 		t := e.LeftFace()
 
 		if t != nil {
-			m.scanTriangle(t.(*DelaunayTriangle))
+			m.scanTriangle(t)
 		}
 
 		spoke = spoke.OrigNext()

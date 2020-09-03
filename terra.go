@@ -59,7 +59,7 @@ func (c *Candidate) Consider(sx, sy int, sz, imp float64) {
 	}
 }
 
-func (c *Candidate) Less(o Candidate) bool {
+func (c *Candidate) Less(o *Candidate) bool {
 	return c.Importance < o.Importance
 }
 
@@ -67,40 +67,36 @@ type CandidateList struct {
 	Candidates PQ
 }
 
-func (cl *CandidateList) Push(candidate Candidate) { cl.Candidates.Push(candidate) }
+func (cl *CandidateList) Push(candidate *Candidate) { cl.Candidates.Push(candidate) }
 
 func (cl *CandidateList) Size() int { return cl.Candidates.Len() }
 
 func (cl *CandidateList) Empty() bool { return cl.Candidates.Len() == 0 }
 
-func (cl *CandidateList) GrabGreatest() Candidate {
+func (cl *CandidateList) GrabGreatest() *Candidate {
 	if cl.Empty() {
-		return Candidate{}
+		return &Candidate{}
 	}
 
 	candidate := cl.Candidates.Pop()
-	return candidate.(Candidate)
+	return candidate.(*Candidate)
 }
 
-func swapP(p1, p2 []float64) {
-	p3 := [2]float64{p1[0], p1[1]}
-
-	p1[0] = p2[0]
-	p1[1] = p2[1]
-
-	p2[0] = p3[0]
-	p2[1] = p3[1]
-}
-
-func orderTrianglePoints(p [3][2]float64) {
+func orderTrianglePoints(p *[3][2]float64) {
 	if p[0][1] > p[1][1] {
-		swapP(p[0][:], p[1][:])
+		tmp := p[0]
+		p[0] = p[1]
+		p[1] = tmp
 	}
 	if p[1][1] > p[2][1] {
-		swapP(p[1][:], p[2][:])
+		tmp := p[1]
+		p[1] = p[2]
+		p[2] = tmp
 	}
 	if p[0][1] > p[1][1] {
-		swapP(p[0][:], p[1][:])
+		tmp := p[0]
+		p[0] = p[1]
+		p[1] = tmp
 	}
 }
 

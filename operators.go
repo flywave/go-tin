@@ -1,16 +1,21 @@
 package tin
 
-func Splice(a, b QuadEdge) {
-	p := a.pool
-	alpha := p.next[a.id].rot()
-	beta := p.next[b.id].rot()
+func Splice(a, b *QuadEdge) {
+	alpha := a.OrigNext().Rot()
+	beta := b.OrigNext().Rot()
 
-	p.next[a.id], p.next[b.id] = p.next[b.id], p.next[a.id]
+	t1 := b.OrigNext()
+	t2 := a.OrigNext()
+	t3 := beta.OrigNext()
+	t4 := alpha.OrigNext()
 
-	p.next[alpha], p.next[beta] = p.next[beta], p.next[alpha]
+	a.next = t1
+	b.next = t2
+	alpha.next = t3
+	beta.next = t4
 }
 
-func Connect(a, b QuadEdge) QuadEdge {
+func Connect(a, b *QuadEdge) *QuadEdge {
 	e := New(a.pool)
 	e.SetOrig(a.Dest())
 	e.SetDest(b.Orig())
@@ -19,7 +24,7 @@ func Connect(a, b QuadEdge) QuadEdge {
 	return e
 }
 
-func SwapTriangles(e QuadEdge) {
+func SwapTriangles(e *QuadEdge) {
 	a := e.OrigPrev()
 	b := e.Sym().OrigPrev()
 	Splice(e, a)

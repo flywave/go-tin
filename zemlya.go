@@ -39,11 +39,12 @@ type ZemlyaMesh struct {
 
 func NewZemlyaMesh() *ZemlyaMesh {
 	mesh := &ZemlyaMesh{}
-	mesh.QuadEdges = NewPool(1)
+	mesh.QuadEdges = NewPool()
+	mesh.scanTriangle = mesh.ScanTriangle
 	return mesh
 }
 
-func (z *ZemlyaMesh) scanTriangleLine(plane Plane, y int, x1, x2 float64, candidate Candidate, noDataValue float64) {
+func (z *ZemlyaMesh) scanTriangleLine(plane Plane, y int, x1, x2 float64, candidate *Candidate, noDataValue float64) {
 	startx := int(math.Ceil(Min(x1, x2)))
 	endx := int(math.Floor(Max(x1, x2)))
 
@@ -55,7 +56,7 @@ func (z *ZemlyaMesh) scanTriangleLine(plane Plane, y int, x1, x2 float64, candid
 	dz := plane[0]
 
 	for x := startx; x <= endx; x++ {
-		if z.Used.Value(y, x) > 0 {
+		if z.Used.Value(y, x) == 0 {
 			var zv float64
 			if z.CurrentLevel == z.MaxLevel {
 				zv = z.Raster.Value(y, x)
@@ -266,7 +267,7 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 
 		t := z.firstFace
 		for {
-			z.scanTriangle(t)
+			z.ScanTriangle(t)
 			t = t.GetLink()
 			if t == nil {
 				break
@@ -302,7 +303,7 @@ func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 
 	byy := [3][2]float64{t.point1(), t.point2(), t.point3()}
 
-	orderTrianglePoints(byy)
+	orderTrianglePoints(&byy)
 
 	v0X := byy[0][0]
 	v0Y := byy[0][1]
@@ -311,7 +312,7 @@ func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 	v2X := byy[2][0]
 	v2Y := byy[2][1]
 
-	candidate := Candidate{X: 0, Y: 0, Z: 0.0, Importance: -math.MaxFloat64, Token: z.Counter, Triangle: t}
+	candidate := &Candidate{X: 0, Y: 0, Z: 0.0, Importance: -math.MaxFloat64, Token: z.Counter, Triangle: t}
 	z.Counter++
 	dx2 := (v2X - v0X) / (v2Y - v0Y)
 	noDataValue := z.Raster.NoData.(float64)

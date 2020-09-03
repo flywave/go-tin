@@ -166,6 +166,13 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	z.repairPoint(float64(w-1), 0)
 
 	z.Result = *NewRasterDouble(h, w, math.NaN())
+	z.Result.SetValue(0, 0, z.Raster.Value(0, 0))
+	z.Result.SetValue(h-1, 0, z.Raster.Value(h-1, 0))
+	z.Result.SetValue(h-1, w-1, z.Raster.Value(h-1, w-1))
+	z.Result.SetValue(0, w-1, z.Raster.Value(0, w-1))
+
+	z.Insert = *NewRasterDouble(h, w, math.NaN())
+
 	z.Used = *NewRasterChar(h, w, 0)
 	z.Token = *NewRasterInt(h, w, 0)
 

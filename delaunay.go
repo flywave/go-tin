@@ -1,21 +1,21 @@
 package tin
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 )
 
-type trianglePool []*DelaunayTriangle
-
 type DelaunayTriangle struct {
 	Anchor *QuadEdge
 	Next   *DelaunayTriangle
-	pool   trianglePool
+	pool   *Pool
+	index  int
 }
 
-func NewDelaunayTriangle(p trianglePool) *DelaunayTriangle {
-	ptr := &DelaunayTriangle{pool: p}
-	p = append(p, ptr)
+func NewDelaunayTriangle(p *Pool) *DelaunayTriangle {
+	ptr := &DelaunayTriangle{pool: p, index: len(p.Values)}
+	p.Values = append(p.Values, ptr)
 	return ptr
 }
 
@@ -35,6 +35,9 @@ func (t *DelaunayTriangle) GetAnchor() *QuadEdge {
 }
 
 func (t *DelaunayTriangle) dontAnchor(e *QuadEdge) {
+	if t == nil {
+		fmt.Println(".....")
+	}
 	if t.Anchor == e {
 		t.Anchor = e.LeftNext()
 	}
@@ -61,7 +64,7 @@ func (t *DelaunayTriangle) point3() [2]float64 {
 
 type DelaunayMesh struct {
 	QuadEdges        *Pool
-	Triangles        trianglePool
+	Triangles        *Pool
 	startingQuadEdge *QuadEdge
 	firstFace        *DelaunayTriangle
 	scanTriangle     func(*DelaunayTriangle)
@@ -79,6 +82,7 @@ func (m *DelaunayMesh) delete(e *QuadEdge) {
 	Splice(e, e.OrigPrev())
 	Splice(e.Sym(), e.Sym().OrigPrev())
 	e.RecycleNext()
+	e.recycle()
 }
 
 func (m *DelaunayMesh) connect(a *QuadEdge, b *QuadEdge) *QuadEdge {
@@ -231,17 +235,19 @@ func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
 			if to > 0 || (to == 0 && t == 0) {
 				m.startingQuadEdge = e
 				return e
+			} else {
+				t = to
+				e = eo
 			}
-			t = to
-			e = eo
 		} else {
 			if to > 0 {
 				if td == 0 && t == 0 {
 					m.startingQuadEdge = e
 					return e
+				} else {
+					t = td
+					e = ed
 				}
-				t = td
-				e = ed
 			} else {
 				if t == 0 && !leftOf(eo.Dest(), e) {
 					e = e.Sym()
@@ -275,15 +281,14 @@ func (m *DelaunayMesh) spoke(x [2]float64, e *QuadEdge) *QuadEdge {
 			symLface := e.Sym().LeftFace()
 			newFaces[facedex] = symLface
 			facedex++
-
 			symLface.dontAnchor(e.Sym())
-
 			e = e.OrigPrev()
 			m.delete(e.OrigNext())
 		}
 	}
 
 	base := New(m.QuadEdges)
+	base.Init()
 
 	base.SetEndPoints(e.Orig(), x)
 

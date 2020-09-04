@@ -6,7 +6,7 @@ func Orientation(a, b, c [2]float64) float32 {
 }
 
 func IsCCW(a, b, c [2]float64) bool {
-	d := a[0]*b[1] + b[0]*c[1] + c[0]*a[1] - b[1]*c[0] - c[1]*a[0] - a[1]*b[0]
+	d := (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0])
 	return d > 0
 }
 
@@ -48,11 +48,9 @@ func InTriangleCCW(a, b, c [2]float64, p [2]float64) bool {
 	return w[0]+w[1] < d
 }
 
-func InCircumcircle(a, b, c [2]float64, p [2]float64) bool {
-	return ((p[1]-a[1])*(b[0]-c[0])+(p[0]-a[0])*(b[1]-c[1]))*
-		((p[0]-c[0])*(b[0]-a[0])-(p[1]-c[1])*(b[1]-a[1])) >
-		((p[1]-c[1])*(b[0]-a[0])+(p[0]-c[0])*(b[1]-a[1]))*
-			((p[0]-a[0])*(b[0]-c[0])-(p[1]-a[1])*(b[1]-c[1]))
+func InCircumcircle(a, b, c, d [2]float64) bool {
+	return (a[0]*a[0]+a[1]*a[1])*triArea(b, c, d)-(b[0]*b[0]+b[1]*b[1])*triArea(a, c, d)-(c[0]*c[0]+c[1]*c[1])*triArea(a, b, d)-(d[0]*d[0]+d[1]*d[1])*triArea(a, b, c) >
+		EPS
 }
 
 func Circumcenter(a, b, c [2]float64) [2]float64 {

@@ -29,9 +29,14 @@ func (pq *PQ) Push(x interface{}) {
 }
 
 func (pq *PQ) Pop() interface{} {
-	temp := (*pq)[len(*pq)-1]
+	temp := (*pq)[0]
 	temp.index = -1
-	*pq = (*pq)[0 : len(*pq)-1]
+	l := len(*pq)
+	if l > 1 {
+		*pq = (*pq)[1 : l-1]
+	} else {
+		*pq = PQ{}
+	}
 	return temp
 }
 
@@ -59,7 +64,7 @@ func (c *Candidate) Consider(sx, sy int, sz, imp float64) {
 	}
 }
 
-func (c *Candidate) Less(o *Candidate) bool {
+func (c *Candidate) Less(o Candidate) bool {
 	return c.Importance < o.Importance
 }
 

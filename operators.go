@@ -17,6 +17,7 @@ func Splice(a, b *QuadEdge) {
 
 func Connect(a, b *QuadEdge) *QuadEdge {
 	e := New(a.pool)
+	e.Init()
 	e.SetOrig(a.Dest())
 	e.SetDest(b.Orig())
 	Splice(e, a.LeftNext())

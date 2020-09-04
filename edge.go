@@ -92,7 +92,7 @@ func (e *QuadEdge) LeftFace() *DelaunayTriangle { return e.lface }
 func (e *QuadEdge) SetLeftFace(f *DelaunayTriangle) { e.lface = f }
 
 func (e *QuadEdge) clear() {
-	if e.pool != nil && e.index > 0 {
+	if e != nil && e.pool != nil && e.index > 0 {
 		e.pool.clear(e.index)
 		e.pool = nil
 		e.index = -1
@@ -111,7 +111,7 @@ func (e *QuadEdge) recycle() {
 }
 
 func (e *QuadEdge) RecycleNext() {
-	if e.qnext != nil && e.index > 0 {
+	if e.index > 0 {
 		e1 := e.qnext
 		e2 := e.qnext.qnext
 		e3 := e.qprev
@@ -119,7 +119,6 @@ func (e *QuadEdge) RecycleNext() {
 		e1.qnext.clear()
 		e2.qnext.clear()
 		e3.qnext.clear()
-		e.qnext = nil
 
 		e1.RecycleNext()
 		e1.recycle()

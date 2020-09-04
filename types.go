@@ -491,7 +491,7 @@ func Clip25dTrianglesTo01Quadrant(tv []Triangle) []Triangle {
 func length(p []float64) float64 {
 	var length float64
 	for i := range p {
-		length += p[i]
+		length += math.Pow(p[i], 2)
 	}
 	return math.Sqrt(length)
 }

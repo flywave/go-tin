@@ -117,7 +117,7 @@ func NewRaster(row, column, dataType int) *Raster {
 	r := Raster{}
 	r.Size = [2]int{row, column}
 	r.Type = int32(dataType)
-	r.NoData = 0.0
+	r.NoData = -400.0
 	switch dataType {
 	case RASTER_DATA_TYPE_INT8:
 		r.Data = make([]int8, row*column)
@@ -146,7 +146,7 @@ func NewRaster(row, column, dataType int) *Raster {
 func NewRasterWithData(row, column int, data interface{}) *Raster {
 	r := Raster{}
 	r.Size = [2]int{row, column}
-	r.NoData = 0.0
+	r.NoData = -400.0
 
 	switch t := data.(type) {
 	case []int8:
@@ -181,6 +181,13 @@ func NewRasterWithData(row, column int, data interface{}) *Raster {
 		r.Data = t
 	}
 	return &r
+}
+
+func (r *Raster) SetXYPos(x, y, z int64) {
+	r.setCellSize(Res(uint64(z)))
+	bd := TileBounds(x, y, uint64(z))
+	r.setPosX(bd[0])
+	r.setPosY(bd[1])
 }
 
 func (r *Raster) setPosX(xpos float64) { r.pos[0] = xpos }
@@ -350,7 +357,11 @@ func NewRasterDouble(row, column int, noData float64) *RasterDouble {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_FLOAT64)
 	r.NoData = noData
-	r.Data = make([]float64, row*column)
+	dt := make([]float64, row*column)
+	for i := range dt {
+		dt[i] = noData
+	}
+	r.Data = dt
 	return &r
 }
 
@@ -359,7 +370,7 @@ func NewRasterDoubleWithData(row, column int, data []float64) *RasterDouble {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_FLOAT64)
 	r.Data = data
-	r.NoData = 0.0
+	r.NoData = -400.0
 	return &r
 }
 
@@ -395,7 +406,11 @@ func NewRasterChar(row, column int, noData int8) *RasterChar {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT8)
 	r.NoData = noData
-	r.Data = make([]int8, row*column)
+	dt := make([]int8, row*column)
+	for i := range dt {
+		dt[i] = noData
+	}
+	r.Data = dt
 	return &r
 }
 
@@ -404,7 +419,7 @@ func NewRasterCharWithData(row, column int, data []int8) *RasterChar {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT8)
 	r.Data = data
-	r.NoData = 0.0
+	r.NoData = -400.0
 
 	return &r
 }
@@ -441,7 +456,11 @@ func NewRasterInt(row, column int, noData int32) *RasterInt {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT32)
 	r.NoData = noData
-	r.Data = make([]int32, row*column)
+	dt := make([]int32, row*column)
+	for i := range dt {
+		dt[i] = noData
+	}
+	r.Data = dt
 	return &r
 }
 
@@ -450,7 +469,7 @@ func NewRasterIntWithData(row, column int, data []int32) *RasterInt {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT32)
 	r.Data = data
-	r.NoData = 0.0
+	r.NoData = -400.0
 
 	return &r
 }

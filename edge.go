@@ -66,7 +66,7 @@ func (e *QuadEdge) Next() *QuadEdge {
 }
 
 func (e *QuadEdge) RightNext() *QuadEdge {
-	return e.Rot().OrigNext().Rot()
+	return e.Rot().OrigNext().Tor()
 }
 
 func (e *QuadEdge) OrigPrev() *QuadEdge { return e.Rot().Next().Rot() }

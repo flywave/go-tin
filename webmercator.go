@@ -95,12 +95,16 @@ func QuadKeyToTileXY(quadKey string) (tileX, tileY int64, levelOfDetail uint64) 
 	return
 }
 
-func PixelXYTToMeters(pixelX, pixelY int64, levelOfDetail uint64) (meterX, meterY float64) {
+func Res(levelOfDetail uint64) float64 {
 	invTileSize := 1.0 / TileSize
 	dres := 2.0 * HalfCircumference * invTileSize
 	res := dres / float64(uint64(1)<<levelOfDetail)
-	meterX = float64(pixelX)*res - HalfCircumference
-	meterY = float64(pixelY)*res - HalfCircumference
+	return res
+}
+func PixelXYTToMeters(pixelX, pixelY int64, levelOfDetail uint64) (meterX, meterY float64) {
+	res := Res(levelOfDetail)
+	meterX = float64(pixelX) * res
+	meterY = float64(pixelY) * res
 	return meterX, meterY
 }
 

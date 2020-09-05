@@ -49,7 +49,7 @@ func InTriangleCCW(a, b, c [2]float64, p [2]float64) bool {
 }
 
 func InCircumcircle(a, b, c, d [2]float64) bool {
-	return (a[0]*a[0]+a[1]*a[1])*triArea(b, c, d)-(b[0]*b[0]+b[1]*b[1])*triArea(a, c, d)-(c[0]*c[0]+c[1]*c[1])*triArea(a, b, d)-(d[0]*d[0]+d[1]*d[1])*triArea(a, b, c) >
+	return (a[0]*a[0]+a[1]*a[1])*triArea(b, c, d)-(b[0]*b[0]+b[1]*b[1])*triArea(a, c, d)+(c[0]*c[0]+c[1]*c[1])*triArea(a, b, d)-(d[0]*d[0]+d[1]*d[1])*triArea(a, b, c) >
 		EPS
 }
 

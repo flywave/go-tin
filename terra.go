@@ -26,6 +26,9 @@ func (pq *PQ) Push(x interface{}) {
 	temp := x.(*Candidate)
 	temp.index = len(*pq)
 	*pq = append(*pq, temp)
+	// st.Slice(*pq, func(i, j int) bool {
+	// 	return (*pq)[i].Importance > (*pq)[j].Importance
+	// })
 }
 
 func (pq *PQ) Pop() interface{} {
@@ -33,7 +36,7 @@ func (pq *PQ) Pop() interface{} {
 	temp.index = -1
 	l := len(*pq)
 	if l > 1 {
-		*pq = (*pq)[1 : l-1]
+		*pq = (*pq)[1:]
 	} else {
 		*pq = PQ{}
 	}

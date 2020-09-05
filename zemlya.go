@@ -40,6 +40,7 @@ type ZemlyaMesh struct {
 func NewZemlyaMesh() *ZemlyaMesh {
 	mesh := &ZemlyaMesh{}
 	mesh.QuadEdges = NewPool()
+	mesh.Triangles = NewPool()
 	mesh.scanTriangle = mesh.ScanTriangle
 	return mesh
 }
@@ -78,15 +79,14 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	z.Counter = 0
 	w := z.Raster.Cols()
 	h := z.Raster.Rows()
+	noDataValue := z.Raster.NoData.(float64)
 
 	if w > h {
 		z.MaxLevel = int(math.Ceil(math.Log2(float64(w))))
 	} else {
 		z.MaxLevel = int(math.Ceil(math.Log2(float64(h))))
 	}
-	z.Sample = *NewRasterDouble(h, w, math.NaN())
-
-	noDataValue := z.Raster.NoData.(float64)
+	z.Sample = *NewRasterDouble(h, w, noDataValue)
 
 	for level := z.MaxLevel - 1; level >= 1; level-- {
 		step := z.MaxLevel - level
@@ -166,13 +166,13 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	z.repairPoint(float64(w-1), float64(h-1))
 	z.repairPoint(float64(w-1), 0)
 
-	z.Result = *NewRasterDouble(h, w, math.NaN())
+	z.Result = *NewRasterDouble(h, w, noDataValue)
 	z.Result.SetValue(0, 0, z.Raster.Value(0, 0))
 	z.Result.SetValue(h-1, 0, z.Raster.Value(h-1, 0))
 	z.Result.SetValue(h-1, w-1, z.Raster.Value(h-1, w-1))
 	z.Result.SetValue(0, w-1, z.Raster.Value(0, w-1))
 
-	z.Insert = *NewRasterDouble(h, w, math.NaN())
+	z.Insert = *NewRasterDouble(h, w, noDataValue)
 
 	z.Used = *NewRasterChar(h, w, 0)
 	z.Token = *NewRasterInt(h, w, 0)
@@ -350,7 +350,9 @@ func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 	}
 
 	z.Token.SetValue(candidate.Y, candidate.X, int32(candidate.Token))
-	z.Candidates.Push(candidate)
+	if candidate.Importance >= z.MaxError {
+		z.Candidates.Push(candidate)
+	}
 }
 
 func (z *ZemlyaMesh) ToMesh() *Mesh {

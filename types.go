@@ -257,7 +257,7 @@ func (b BBox2d) Contains(point []float64, epsilon float64) bool {
 type BBox3d [6]float64
 
 func NewBBox3d() *BBox3d {
-	return &BBox3d{-math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64, math.MaxFloat64, math.MaxFloat64, math.MaxFloat64}
+	return &BBox3d{math.MaxFloat64, math.MaxFloat64, math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64}
 }
 
 func (b *BBox3d) to2d() BBox2d {

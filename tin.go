@@ -25,7 +25,7 @@ func checkTriangleInTile(t Triangle, tileBounds BBox2d) bool {
 }
 
 func (tm *TileMaker) GenTile(tx, ty int64, zoom uint64) (*Mesh, error) {
-	var vertsInTile []Vertex
+	vertsInTile := make([]Vertex, len(tm.mesh.Vertices))
 	copy(vertsInTile, tm.mesh.Vertices)
 
 	tileBounds := TileBounds(tx, ty, zoom)
@@ -38,20 +38,17 @@ func (tm *TileMaker) GenTile(tx, ty int64, zoom uint64) (*Mesh, error) {
 
 	for t := range vertsInTile {
 		v := &vertsInTile[t]
-		for i := 0; i < 3; i++ {
-			if v[2] < tileBBox[2] {
-				tileBBox[2] = v[2]
-			}
-			if v[2] > tileBBox[5] {
-				tileBBox[5] = v[2]
-			}
-			v[0] = (v[0] - tileOrigin[0])
-			v[1] = (v[1] - tileOrigin[1])
-			v[2] = (v[2] - tileBBox[2])
+		if v[2] < tileBBox[2] {
+			tileBBox[2] = v[2]
 		}
+		if v[2] > tileBBox[5] {
+			tileBBox[5] = v[2]
+		}
+		v[0] = (v[0] - tileOrigin[0])
+		v[1] = (v[1] - tileOrigin[1])
 	}
 
-	var fInTile []Face
+	fInTile := make([]Face, len(tm.mesh.Faces))
 	copy(fInTile, tm.mesh.Faces)
 	tileMesh := new(Mesh)
 	tileMesh.initFromDecomposed(vertsInTile, fInTile)

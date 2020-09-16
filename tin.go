@@ -24,17 +24,14 @@ func checkTriangleInTile(t Triangle, tileBounds BBox2d) bool {
 	return triangleBounds.Intersects(tileBounds, EPS)
 }
 
-func (tm *TileMaker) GenTile(tx, ty int64, zoom uint64) (*Mesh, error) {
+func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
 	var vertsInTile []Vertex
 	copy(vertsInTile, tm.mesh.Vertices)
-
-	tileBounds := TileBounds(tx, ty, zoom)
-	tileOrigin := [2]float64{tileBounds[0], tileBounds[1]}
 	tileBBox := *NewBBox3d()
-	tileBBox[0] = tileBounds[0]
-	tileBBox[1] = tileBounds[1]
-	tileBBox[3] = tileBounds[2]
-	tileBBox[4] = tileBounds[3]
+	tileBBox[0] = tsf[0]
+	tileBBox[1] = tsf[3] + tsf[5]*float64(y)
+	tileBBox[3] = tsf[0] + tsf[1]*float64(x)
+	tileBBox[4] = tsf[3]
 
 	for t := range vertsInTile {
 		v := &vertsInTile[t]
@@ -45,8 +42,8 @@ func (tm *TileMaker) GenTile(tx, ty int64, zoom uint64) (*Mesh, error) {
 			if v[2] > tileBBox[5] {
 				tileBBox[5] = v[2]
 			}
-			v[0] = (v[0] - tileOrigin[0])
-			v[1] = (v[1] - tileOrigin[1])
+			v[0] = (v[0] - tileBBox[0])
+			v[1] = (v[1] - tileBBox[1])
 			v[2] = (v[2] - tileBBox[2])
 		}
 	}

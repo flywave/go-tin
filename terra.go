@@ -126,15 +126,15 @@ func computePlane(plane Plane, t *DelaunayTriangle, raster *RasterDouble) Plane 
 
 type RasterMesh struct {
 	DelaunayMesh
-	Raster RasterDouble
+	Raster *RasterDouble
 }
 
 func (r *RasterMesh) LoadRaster(raster *RasterDouble) {
-	r.Raster = *raster
+	r.Raster = raster
 }
 
 func (r *RasterMesh) repairPoint(px, py float64) {
-	z := SampleNearestValidAvg(&r.Raster, int(py), int(px), 1)
+	z := SampleNearestValidAvg(r.Raster, int(py), int(px), 1)
 	no_data_value := r.Raster.NoData.(float64)
 	if isNoData(z, no_data_value) {
 		r.Raster.SetValue(int(py), int(px), 0.0)

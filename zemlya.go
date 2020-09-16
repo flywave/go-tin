@@ -25,11 +25,11 @@ func averageOf(d1, d2, d3, d4, noDataValue float64) float64 {
 
 type ZemlyaMesh struct {
 	RasterMesh
-	Sample       RasterDouble
-	Insert       RasterDouble
-	Result       RasterDouble
-	Used         RasterChar
-	Token        RasterInt
+	Sample       *RasterDouble
+	Insert       *RasterDouble
+	Result       *RasterDouble
+	Used         *RasterChar
+	Token        *RasterInt
 	Candidates   CandidateList
 	MaxError     float64
 	Counter      int
@@ -86,7 +86,7 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	} else {
 		z.MaxLevel = int(math.Ceil(math.Log2(float64(h))))
 	}
-	z.Sample = *NewRasterDouble(h, w, noDataValue)
+	z.Sample = NewRasterDouble(h, w, noDataValue)
 
 	for level := z.MaxLevel - 1; level >= 1; level-- {
 		step := z.MaxLevel - level
@@ -166,23 +166,23 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	z.repairPoint(float64(w-1), float64(h-1))
 	z.repairPoint(float64(w-1), 0)
 
-	z.Result = *NewRasterDouble(h, w, noDataValue)
+	z.Result = NewRasterDouble(h, w, noDataValue)
 	z.Result.SetValue(0, 0, z.Raster.Value(0, 0))
 	z.Result.SetValue(h-1, 0, z.Raster.Value(h-1, 0))
 	z.Result.SetValue(h-1, w-1, z.Raster.Value(h-1, w-1))
 	z.Result.SetValue(0, w-1, z.Raster.Value(0, w-1))
 
-	z.Insert = *NewRasterDouble(h, w, noDataValue)
+	z.Insert = NewRasterDouble(h, w, noDataValue)
 
-	z.Used = *NewRasterChar(h, w, 0)
-	z.Token = *NewRasterInt(h, w, 0)
+	z.Used = NewRasterChar(h, w, 0)
+	z.Token = NewRasterInt(h, w, 0)
 
 	z.initMesh([2]float64{0, 0}, [2]float64{0, float64(h - 1)}, [2]float64{float64(w - 1), float64(h - 1)},
 		[2]float64{float64(w - 1), 0})
 
 	for level := 1; level <= z.MaxLevel; level++ {
 		z.CurrentLevel = level
-		z.Used = *NewRasterChar(h, w, 0)
+		z.Used = NewRasterChar(h, w, 0)
 
 		if level >= 5 && level <= z.MaxLevel-1 {
 			step := z.MaxLevel - level
@@ -299,7 +299,7 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 
 func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 	var zPlane Plane
-	zPlane = computePlane(zPlane, t, &z.Result)
+	zPlane = computePlane(zPlane, t, z.Result)
 
 	byy := [3][2]float64{t.point1(), t.point2(), t.point3()}
 

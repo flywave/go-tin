@@ -1,5 +1,7 @@
 package tin
 
+import "math"
+
 type RasterType int
 
 const (
@@ -183,11 +185,10 @@ func NewRasterWithData(row, column int, data interface{}) *Raster {
 	return &r
 }
 
-func (r *Raster) SetXYPos(x, y, z int64) {
-	r.setCellSize(Res(uint64(z)))
-	bd := TileBounds(x, y, uint64(z))
-	r.setPosX(bd[0])
-	r.setPosY(bd[1])
+func (r *Raster) SetXYPos(x, y, res float64) {
+	r.setCellSize(res)
+	r.setPosX(x)
+	r.setPosY(y)
 }
 
 func (r *Raster) setPosX(xpos float64) { r.pos[0] = xpos }
@@ -370,7 +371,7 @@ func NewRasterDoubleWithData(row, column int, data []float64) *RasterDouble {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_FLOAT64)
 	r.Data = data
-	r.NoData = -400.0
+	r.NoData = math.NaN()
 	return &r
 }
 
@@ -419,7 +420,7 @@ func NewRasterCharWithData(row, column int, data []int8) *RasterChar {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT8)
 	r.Data = data
-	r.NoData = -400.0
+	r.NoData = math.NaN()
 
 	return &r
 }
@@ -469,7 +470,7 @@ func NewRasterIntWithData(row, column int, data []int32) *RasterInt {
 	r.Size = [2]int{row, column}
 	r.Type = int32(RASTER_DATA_TYPE_INT32)
 	r.Data = data
-	r.NoData = -400.0
+	r.NoData = math.NaN()
 
 	return &r
 }

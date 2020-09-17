@@ -109,7 +109,7 @@ func orderTrianglePoints(p *[3][2]float64) {
 }
 
 func isNoData(value, noDataValue float64) bool {
-	return value == math.NaN() || value == noDataValue
+	return math.IsNaN(value) || value == noDataValue
 }
 
 func computePlane(plane Plane, t *DelaunayTriangle, raster *RasterDouble) Plane {

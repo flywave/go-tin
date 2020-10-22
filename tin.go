@@ -35,17 +35,15 @@ func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
 
 	for t := range vertsInTile {
 		v := &vertsInTile[t]
-		for i := 0; i < 3; i++ {
-			if v[2] < tileBBox[2] {
-				tileBBox[2] = v[2]
-			}
-			if v[2] > tileBBox[5] {
-				tileBBox[5] = v[2]
-			}
-			v[0] = (v[0] - tileBBox[0])
-			v[1] = (v[1] - tileBBox[1])
-			v[2] = (v[2] - tileBBox[2])
+		if v[2] < tileBBox[2] {
+			tileBBox[2] = v[2]
 		}
+		if v[2] > tileBBox[5] {
+			tileBBox[5] = v[2]
+		}
+		v[0] = (v[0] - tileBBox[0])
+		v[1] = (v[1] - tileBBox[1])
+		v[2] = (v[2] - tileBBox[2])
 	}
 
 	fInTile := make([]Face, len(tm.mesh.Faces))

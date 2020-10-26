@@ -47,16 +47,22 @@ func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
 		v[1] = (v[1] - cty)
 	}
 
+	ctz := (tileBBox[2] + tileBBox[5]) / 2
+	for t := range vertsInTile {
+		v := &vertsInTile[t]
+		v[2] = (v[2] - ctx)
+	}
+
 	fInTile := make([]Face, len(tm.mesh.Faces))
 	copy(fInTile, tm.mesh.Faces)
 	tileMesh := new(Mesh)
 	tileMesh.initFromDecomposed(vertsInTile, fInTile)
 	tileMesh.BBox[0][0] = tileBBox[0] - ctx
 	tileMesh.BBox[0][1] = tileBBox[1] - cty
-	tileMesh.BBox[0][2] = 0
+	tileMesh.BBox[0][2] = tileBBox[2] - ctz
 	tileMesh.BBox[1][0] = tileBBox[3] - ctx
 	tileMesh.BBox[1][1] = tileBBox[4] - cty
-	tileMesh.BBox[1][2] = 0
+	tileMesh.BBox[1][2] = tileBBox[5] - ctz
 
 	return tileMesh, nil
 }

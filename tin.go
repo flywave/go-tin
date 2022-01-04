@@ -29,8 +29,6 @@ func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
 	tileBBox[1] = tsf[3] + tsf[5]*float64(y)
 	tileBBox[3] = tsf[0] + tsf[1]*float64(x)
 	tileBBox[4] = tsf[3]
-	ctx := (tileBBox[0] + tileBBox[3]) / 2
-	cty := (tileBBox[1] + tileBBox[4]) / 2
 
 	for t := range vertsInTile {
 		v := &vertsInTile[t]
@@ -40,26 +38,38 @@ func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
 		if v[2] > tileBBox[5] {
 			tileBBox[5] = v[2]
 		}
-		v[0] = (v[0] - ctx)
-		v[1] = (v[1] - cty)
 	}
 
-	ctz := (tileBBox[2] + tileBBox[5]) / 2
+	tileInverseScaleX := 1.0 / tileBBox.Width()
+	tileInverseScaleY := 1.0 / tileBBox.Height()
+	dp := tileBBox.Depth()
+	if dp == 0 {
+		dp = 1
+	}
+	//TODO fix potential division by zero
+	tileInverseScaleZ := 1.0 / dp
+
+	ctx := tileBBox[0]
+	cty := tileBBox[1]
+	ctz := tileBBox[2]
+
 	for t := range vertsInTile {
 		v := &vertsInTile[t]
-		v[2] = (v[2] - ctz)
+		v[0] = (v[0] - ctx) * tileInverseScaleX
+		v[1] = (v[1] - cty) * tileInverseScaleY
+		v[2] = (v[2] - ctz) * tileInverseScaleZ
 	}
 
 	fInTile := make([]Face, len(tm.mesh.Faces))
 	copy(fInTile, tm.mesh.Faces)
 	tileMesh := new(Mesh)
 	tileMesh.initFromDecomposed(vertsInTile, fInTile)
-	tileMesh.BBox[0][0] = tileBBox[0] - ctx
-	tileMesh.BBox[0][1] = tileBBox[1] - cty
-	tileMesh.BBox[0][2] = tileBBox[2] - ctz
-	tileMesh.BBox[1][0] = tileBBox[3] - ctx
-	tileMesh.BBox[1][1] = tileBBox[4] - cty
-	tileMesh.BBox[1][2] = tileBBox[5] - ctz
+	tileMesh.BBox[0][0] = tileBBox[0]
+	tileMesh.BBox[0][1] = tileBBox[1]
+	tileMesh.BBox[0][2] = tileBBox[2]
+	tileMesh.BBox[1][0] = tileBBox[3]
+	tileMesh.BBox[1][1] = tileBBox[4]
+	tileMesh.BBox[1][2] = tileBBox[5]
 
 	return tileMesh, nil
 }

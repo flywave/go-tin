@@ -379,7 +379,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 				minz = math.Min(minz, v[2])
 
 				maxx = math.Max(maxx, v[0])
-				maxy = math.Max(maxx, v[1])
+				maxy = math.Max(maxy, v[1])
 				maxz = math.Max(maxz, v[2])
 
 				mvertices = append(mvertices, v)

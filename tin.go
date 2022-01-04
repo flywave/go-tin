@@ -21,24 +21,17 @@ func checkTriangleInTile(t Triangle, tileBounds BBox2d) bool {
 	return triangleBounds.Intersects(tileBounds, EPS)
 }
 
-func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
+func (tm *TileMaker) GenTile() (*Mesh, error) {
 	vertsInTile := make([]Vertex, len(tm.mesh.Vertices))
 	copy(vertsInTile, tm.mesh.Vertices)
 	tileBBox := *NewBBox3d()
-	tileBBox[0] = tsf[0]
-	tileBBox[1] = tsf[3] + tsf[5]*float64(y)
-	tileBBox[3] = tsf[0] + tsf[1]*float64(x)
-	tileBBox[4] = tsf[3]
+	tileBBox[0] = tm.mesh.BBox[0][0]
+	tileBBox[1] = tm.mesh.BBox[0][1]
+	tileBBox[2] = tm.mesh.BBox[0][2]
 
-	for t := range vertsInTile {
-		v := &vertsInTile[t]
-		if v[2] < tileBBox[2] {
-			tileBBox[2] = v[2]
-		}
-		if v[2] > tileBBox[5] {
-			tileBBox[5] = v[2]
-		}
-	}
+	tileBBox[3] = tm.mesh.BBox[1][0]
+	tileBBox[4] = tm.mesh.BBox[1][1]
+	tileBBox[5] = tm.mesh.BBox[1][2]
 
 	tileInverseScaleX := 1.0 / tileBBox.Width()
 	tileInverseScaleY := 1.0 / tileBBox.Height()

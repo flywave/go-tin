@@ -26,7 +26,7 @@ func (tm *TileMaker) GenTile(tsf [6]float64, x, y int) (*Mesh, error) {
 	copy(vertsInTile, tm.mesh.Vertices)
 	tileBBox := *NewBBox3d()
 	tileBBox[0] = tsf[0]
-	tileBBox[1] = tsf[3] + tsf[4]*float64(y)
+	tileBBox[1] = tsf[3] + tsf[5]*float64(y)
 	tileBBox[3] = tsf[0] + tsf[1]*float64(x)
 	tileBBox[4] = tsf[3]
 	ctx := (tileBBox[0] + tileBBox[3]) / 2

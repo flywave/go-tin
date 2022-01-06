@@ -6,14 +6,16 @@ import (
 
 type Mesh struct {
 	Vertices  []Vertex
+	Normals   []Normal
 	Faces     []Face
 	Triangles []Triangle
 	BBox      [2][3]float64
 }
 
-func (m *Mesh) initFromDecomposed(vertices []Vertex, faces []Face) {
+func (m *Mesh) initFromDecomposed(vertices []Vertex, faces []Face, norl []Normal) {
 	m.Vertices = vertices
 	m.Faces = faces
+	m.Normals = norl
 	m.Triangles = make([]Triangle, 0)
 }
 

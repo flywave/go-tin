@@ -7,6 +7,7 @@ const (
 )
 
 type Vertex [3]float64
+type Normal [3]float64
 
 func (v Vertex) Equal(o Vertex) bool {
 	return math.Abs(v[0]-o[0]) < EPS && math.Abs(v[1]-o[1]) < EPS && math.Abs(v[2]-o[2]) < EPS

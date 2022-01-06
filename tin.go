@@ -56,7 +56,7 @@ func (tm *TileMaker) GenTile() (*Mesh, error) {
 	fInTile := make([]Face, len(tm.mesh.Faces))
 	copy(fInTile, tm.mesh.Faces)
 	tileMesh := new(Mesh)
-	tileMesh.initFromDecomposed(vertsInTile, fInTile)
+	tileMesh.initFromDecomposed(vertsInTile, fInTile, tm.mesh.Normals)
 	tileMesh.BBox[0][0] = tileBBox[0]
 	tileMesh.BBox[0][1] = tileBBox[1]
 	tileMesh.BBox[0][2] = tileBBox[2]

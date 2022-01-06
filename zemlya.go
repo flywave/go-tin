@@ -357,6 +357,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	h := z.Raster.Rows()
 
 	var mvertices []Vertex
+	var normals []Normal
 	vertexID := NewRasterInt(h, w, 0)
 
 	index := 0
@@ -419,6 +420,6 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	mesh := new(Mesh)
 	mesh.BBox[0] = [3]float64{minx, miny, minz}
 	mesh.BBox[1] = [3]float64{maxx, maxy, maxz}
-	mesh.initFromDecomposed(mvertices, mfaces)
+	mesh.initFromDecomposed(mvertices, mfaces, normals)
 	return mesh
 }

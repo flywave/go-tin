@@ -1,6 +1,10 @@
 package tin
 
-import "math"
+import (
+	"math"
+
+	"github.com/flywave/go3d/float64/vec3"
+)
 
 func averageOf(d1, d2, d3, d4, noDataValue float64) float64 {
 	count := 0
@@ -357,7 +361,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	h := z.Raster.Rows()
 
 	var mvertices []Vertex
-	var normals []Normal
+
 	vertexID := NewRasterInt(h, w, 0)
 
 	index := 0
@@ -389,7 +393,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			}
 		}
 	}
-
+	normals := make([]Normal, len(mvertices))
 	var mfaces []Face
 	t := z.firstFace
 	for {
@@ -408,8 +412,30 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			f[1] = VertexIndex(vertexID.Value(int(p2[1]), int(p2[0])))
 			f[2] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
 		}
-
 		mfaces = append(mfaces, f)
+
+		for i := 0; i < 3; i++ {
+			a := i
+			b := (a + 1) % 3
+			c := (a + 2) % 3
+
+			nl := (vec3.T)(normals[f[a]])
+
+			pt1 := (vec3.T)(mvertices[f[a]])
+			pt2 := (vec3.T)(mvertices[f[b]])
+			pt3 := (vec3.T)(mvertices[f[c]])
+
+			sub1 := vec3.Sub(&pt2, &pt1)
+			sub1.Normalize()
+			sub2 := vec3.Sub(&pt3, &pt1)
+			sub2.Normalize()
+
+			cro := vec3.Cross(&sub1, &sub2)
+			cro.Normalize()
+			nl.Add(&cro)
+			nl.Normalize()
+			normals[f[a]] = Normal(nl)
+		}
 
 		t = t.GetLink()
 		if t == nil {

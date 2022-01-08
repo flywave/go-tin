@@ -18,13 +18,14 @@ const (
 )
 
 type Raster struct {
-	Size     [2]int
-	Bounds   [4]float64
-	NoData   interface{}
-	Type     int32
-	Data     interface{}
-	pos      [2]float64
-	cellsize float64
+	Size      [2]int
+	Bounds    [4]float64
+	NoData    interface{}
+	Type      int32
+	Data      interface{}
+	pos       [2]float64
+	cellsize  float64
+	transform func(*Vertex) Vertex
 }
 
 func NewRasterWithNoData(row, column int, noData interface{}) *Raster {
@@ -190,6 +191,8 @@ func (r *Raster) SetXYPos(x, y, res float64) {
 	r.setPosX(x)
 	r.setPosY(y)
 }
+
+func (r *Raster) SetTransform(trans func(*Vertex) Vertex) { r.transform = trans }
 
 func (r *Raster) setPosX(xpos float64) { r.pos[0] = xpos }
 

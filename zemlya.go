@@ -379,6 +379,9 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			zv := z.Result.Value(y, x)
 			if !isNoData(zv, noDataValue) {
 				v := Vertex{z.Raster.col2x(x), z.Raster.row2y(y), zv}
+				if z.Raster.transform != nil {
+					v = z.Raster.transform(&v)
+				}
 				minx = math.Min(minx, v[0])
 				miny = math.Min(miny, v[1])
 				minz = math.Min(minz, v[2])

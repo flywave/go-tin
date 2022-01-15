@@ -365,7 +365,6 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	vertexID := NewRasterInt(h, w, 0)
 
 	index := 0
-	noDataValue := z.Raster.NoData.(float64)
 	minx := math.MaxFloat64
 	miny := math.MaxFloat64
 	minz := math.MaxFloat64
@@ -377,23 +376,21 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			zv := z.Result.Value(y, x)
-			if !isNoData(zv, noDataValue) {
-				v := Vertex{z.Raster.col2x(x), z.Raster.row2y(y), zv}
-				if z.Raster.transform != nil {
-					v = z.Raster.transform(&v)
-				}
-				minx = math.Min(minx, v[0])
-				miny = math.Min(miny, v[1])
-				minz = math.Min(minz, v[2])
-
-				maxx = math.Max(maxx, v[0])
-				maxy = math.Max(maxy, v[1])
-				maxz = math.Max(maxz, v[2])
-
-				mvertices = append(mvertices, v)
-				vertexID.SetValue(y, x, int32(index))
-				index++
+			v := Vertex{z.Raster.col2x(x), z.Raster.row2y(y), zv}
+			if z.Raster.transform != nil {
+				v = z.Raster.transform(&v)
 			}
+			minx = math.Min(minx, v[0])
+			miny = math.Min(miny, v[1])
+			minz = math.Min(minz, v[2])
+
+			maxx = math.Max(maxx, v[0])
+			maxy = math.Max(maxy, v[1])
+			maxz = math.Max(maxz, v[2])
+
+			mvertices = append(mvertices, v)
+			vertexID.SetValue(y, x, int32(index))
+			index++
 		}
 	}
 	normals := make([]Normal, len(mvertices))

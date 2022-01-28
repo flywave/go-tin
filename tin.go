@@ -33,26 +33,6 @@ func (tm *TileMaker) GenTile() (*Mesh, error) {
 	tileBBox[4] = tm.mesh.BBox[1][1]
 	tileBBox[5] = tm.mesh.BBox[1][2]
 
-	tileInverseScaleX := 1.0 / tileBBox.Width()
-	tileInverseScaleY := 1.0 / tileBBox.Height()
-	dp := tileBBox.Depth()
-	if dp == 0 {
-		dp = 1
-	}
-	//TODO fix potential division by zero
-	tileInverseScaleZ := 1.0 / dp
-
-	ctx := tileBBox[0]
-	cty := tileBBox[1]
-	ctz := tileBBox[2]
-
-	for t := range vertsInTile {
-		v := &vertsInTile[t]
-		v[0] = (v[0] - ctx) * tileInverseScaleX
-		v[1] = (v[1] - cty) * tileInverseScaleY
-		v[2] = (v[2] - ctz) * tileInverseScaleZ
-	}
-
 	fInTile := make([]Face, len(tm.mesh.Faces))
 	copy(fInTile, tm.mesh.Faces)
 	tileMesh := new(Mesh)

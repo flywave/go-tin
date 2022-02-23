@@ -447,10 +447,13 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 
 		n1 := (vec3.T)(normals[f[0]])
 		n1.Add(weightedNormal)
+		n1.Normalize()
 		n2 := (vec3.T)(normals[f[1]])
 		n2.Add(weightedNormal)
+		n2.Normalize()
 		n3 := (vec3.T)(normals[f[2]])
 		n3.Add(weightedNormal)
+		n3.Normalize()
 
 		normals[f[0]] = (Normal)(n1)
 		normals[f[1]] = (Normal)(n2)

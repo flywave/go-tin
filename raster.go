@@ -340,6 +340,7 @@ func (r *Raster) row2y(rtl int) float64 {
 		} else if rtl == 0 {
 			rtl += 1
 		}
+
 	}
 	rll := r.Rows() - 1 - rtl
 	return r.pos[1] + (float64(rll)+0.5)*r.cellsize

@@ -23,6 +23,7 @@ type Raster struct {
 	NoData    interface{}
 	Type      int32
 	Data      interface{}
+	Hemlines  bool
 	pos       [2]float64
 	cellsize  float64
 	transform func(*Vertex) Vertex
@@ -305,7 +306,16 @@ func (r *Raster) GetRow(row int) interface{} {
 	return nil
 }
 
-func (r *Raster) col2x(c int) float64 { return r.pos[0] + (float64(c)+0.5)*r.cellsize }
+func (r *Raster) col2x(c int) float64 {
+	if r.Hemlines {
+		if c == r.Size[0]-1 {
+			c -= 1
+		} else if c == 0 {
+			c += 1
+		}
+	}
+	return r.pos[0] + (float64(c)+0.5)*r.cellsize
+}
 
 func (r *Raster) x2col(x float64) int {
 	if r.cellsize > 0 {
@@ -324,6 +334,13 @@ func (r *Raster) y2row(y float64) int {
 }
 
 func (r *Raster) row2y(rtl int) float64 {
+	if r.Hemlines {
+		if rtl == r.Size[1]-1 {
+			rtl -= 1
+		} else if rtl == 0 {
+			rtl += 1
+		}
+	}
 	rll := r.Rows() - 1 - rtl
 	return r.pos[1] + (float64(rll)+0.5)*r.cellsize
 }

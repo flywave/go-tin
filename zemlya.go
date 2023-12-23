@@ -396,7 +396,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			}
 		}
 	}
-	normals := make([]Normal, len(mvertices))
+	// normals := make([]Normal, len(mvertices))
 	normalsPerFace := []*vec3.T{}
 	areaPerFace := []float64{}
 
@@ -441,29 +441,29 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 		}
 	}
 
-	for i := range mfaces {
-		f := &mfaces[i]
-		weightedNormal := (*normalsPerFace[i]).Scale(areaPerFace[i])
+	// for i := range mfaces {
+	// 	f := &mfaces[i]
+	// 	weightedNormal := (*normalsPerFace[i]).Scale(areaPerFace[i])
 
-		n1 := (vec3.T)(normals[f[0]])
-		n1.Add(weightedNormal)
-		n1.Normalize()
-		n2 := (vec3.T)(normals[f[1]])
-		n2.Add(weightedNormal)
-		n2.Normalize()
-		n3 := (vec3.T)(normals[f[2]])
-		n3.Add(weightedNormal)
-		n3.Normalize()
+	// 	n1 := (vec3.T)(normals[f[0]])
+	// 	n1.Add(weightedNormal)
+	// 	n1.Normalize()
+	// 	n2 := (vec3.T)(normals[f[1]])
+	// 	n2.Add(weightedNormal)
+	// 	n2.Normalize()
+	// 	n3 := (vec3.T)(normals[f[2]])
+	// 	n3.Add(weightedNormal)
+	// 	n3.Normalize()
 
-		normals[f[0]] = (Normal)(n1)
-		normals[f[1]] = (Normal)(n2)
-		normals[f[2]] = (Normal)(n3)
-	}
+	// 	normals[f[0]] = (Normal)(n1)
+	// 	normals[f[1]] = (Normal)(n2)
+	// 	normals[f[2]] = (Normal)(n3)
+	// }
 
 	mesh := new(Mesh)
 	mesh.BBox[0] = [3]float64{minx, miny, minz}
 	mesh.BBox[1] = [3]float64{maxx, maxy, maxz}
-	mesh.initFromDecomposed(mvertices, mfaces, normals)
+	mesh.initFromDecomposed(mvertices, mfaces, nil)
 	return mesh
 }
 

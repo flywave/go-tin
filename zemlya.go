@@ -2,8 +2,6 @@ package tin
 
 import (
 	"math"
-
-	"github.com/flywave/go3d/float64/vec3"
 )
 
 func averageOf(d1, d2, d3, d4, noDataValue float64) float64 {
@@ -397,8 +395,8 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 		}
 	}
 	// normals := make([]Normal, len(mvertices))
-	normalsPerFace := []*vec3.T{}
-	areaPerFace := []float64{}
+	// normalsPerFace := []*vec3.T{}
+	// areaPerFace := []float64{}
 
 	var mfaces []Face
 	t := z.firstFace
@@ -421,19 +419,19 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 
 		mfaces = append(mfaces, f)
 
-		pt1 := (vec3.T)(mvertices[f[0]])
-		pt2 := (vec3.T)(mvertices[f[1]])
-		pt3 := (vec3.T)(mvertices[f[2]])
+		// pt1 := (vec3.T)(mvertices[f[0]])
+		// pt2 := (vec3.T)(mvertices[f[1]])
+		// pt3 := (vec3.T)(mvertices[f[2]])
 
-		sub1 := vec3.Sub(&pt2, &pt1)
-		sub1.Normalize()
-		sub2 := vec3.Sub(&pt3, &pt1)
-		sub2.Normalize()
+		// sub1 := vec3.Sub(&pt2, &pt1)
+		// sub1.Normalize()
+		// sub2 := vec3.Sub(&pt3, &pt1)
+		// sub2.Normalize()
 
-		cro := vec3.Cross(&sub1, &sub2)
-		cro.Normalize()
-		normalsPerFace = append(normalsPerFace, &cro)
-		areaPerFace = append(areaPerFace, triangleArea(&pt1, &pt2))
+		// cro := vec3.Cross(&sub1, &sub2)
+		// cro.Normalize()
+		// normalsPerFace = append(normalsPerFace, &cro)
+		// areaPerFace = append(areaPerFace, triangleArea(&pt1, &pt2))
 
 		t = t.GetLink()
 		if t == nil {
@@ -467,9 +465,9 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	return mesh
 }
 
-func triangleArea(a, b *vec3.T) float64 {
-	i := math.Pow(a[1]*b[2]-a[2]*b[1], 2)
-	j := math.Pow(a[2]*b[0]-a[0]*b[2], 2)
-	k := math.Pow(a[0]*b[1]-a[1]*b[0], 2)
-	return 0.5 * math.Sqrt(i+j+k)
-}
+// func triangleArea(a, b *vec3.T) float64 {
+// 	i := math.Pow(a[1]*b[2]-a[2]*b[1], 2)
+// 	j := math.Pow(a[2]*b[0]-a[0]*b[2], 2)
+// 	k := math.Pow(a[0]*b[1]-a[1]*b[0], 2)
+// 	return 0.5 * math.Sqrt(i+j+k)
+// }

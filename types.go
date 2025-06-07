@@ -343,42 +343,42 @@ func squared2DDistance(p0, p1 [2]float64) float64 {
 }
 
 /*
+	  lp - leftPoints
+	  op - otherPoints
 
-   lp - leftPoints
-   op - otherPoints
+	  winding order counter-clockwise = inside
+	                  +
+	                 /|
+	                / |
+	               /  |
+	              /   |
+	             /    |
+	            /     |
+	           /      |
+	          /       |
+	         /        |
+	        /         |
+	l1   s0/          |s1     l0
+	 x----*-----------*-------x
+	     /            |
+	    /             |
 
-   winding order counter-clockwise = inside
-                   +
-                  /|
-                 / |
-                /  |
-               /   |
-              /    |
-             /     |
-            /      |
-           /       |
-          /        |
-         /         |
- l1   s0/          |s1     l0
-  x----*-----------*-------x
-      /            |
-     /             |
 lp[0] +              |
-     \             |
-       \           |
-         \         |
-           \       |
-             \     |
-               \   |
-                 \ |
-                   + lp[1]
 
+	\             |
+	  \           |
+	    \         |
+	      \       |
+	        \     |
+	          \   |
+	            \ |
+	              + lp[1]
 */
-func Clip25DTriangleByLine(tv []Triangle, triangleIdx int, lorg, ldir [2]float64) {
+func Clip25DTriangleByLine(tv []Triangle, triangleIdx int, lorg, ldir [2]float64) []Triangle {
 	t := tv[triangleIdx]
 
 	if hasNaNs(t) {
-		return
+		return tv
 	}
 
 	var leftPoints [3][3]float64
@@ -420,7 +420,7 @@ func Clip25DTriangleByLine(tv []Triangle, triangleIdx int, lorg, ldir [2]float64
 		makeFrontFacing(&t)
 	} else if leftPointsCount == 2 {
 		if otherSigns[0] == 0 {
-			return
+			return tv
 		}
 
 		s0 := intersect25DLinesegmentByLine(
@@ -452,8 +452,7 @@ func Clip25DTriangleByLine(tv []Triangle, triangleIdx int, lorg, ldir [2]float64
 		makeFrontFacing(&tnew)
 		tv = append(tv, tnew)
 	}
-
-	return
+	return tv
 }
 
 func Clip25dTrianglesTo01Quadrant(tv []Triangle) []Triangle {

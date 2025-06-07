@@ -360,6 +360,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	h := z.Raster.Rows()
 
 	var mvertices []Vertex
+	var discardFaces []Face
 
 	vertexID := NewRasterInt(h, w, 0)
 	noDataValue := z.Raster.NoData.(float64)
@@ -395,9 +396,8 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			}
 		}
 	}
-	// normals := make([]Normal, len(mvertices))
-	// normalsPerFace := []*vec3.T{}
-	// areaPerFace := []float64{}
+
+	normals := make([]Normal, len(mvertices))
 
 	var mfaces []Face
 	t := z.firstFace
@@ -407,6 +407,14 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 		p1 := t.point1()
 		p2 := t.point2()
 		p3 := t.point3()
+
+		r1 := z.Result.Value(int(p1[1]), int(p1[0]))
+		r2 := z.Result.Value(int(p2[1]), int(p2[0]))
+		r3 := z.Result.Value(int(p3[1]), int(p3[0]))
+
+		hasNoData := isNoData(r1, noDataValue) ||
+			isNoData(r2, noDataValue) ||
+			isNoData(r3, noDataValue)
 
 		if !IsCCW(p1, p2, p3) {
 			f[0] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
@@ -418,21 +426,43 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			f[2] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
 		}
 
-		mfaces = append(mfaces, f)
+		if hasNoData {
+			discardFaces = append(discardFaces, f)
+		} else {
+			mfaces = append(mfaces, f)
 
-		// pt1 := (vec3.T)(mvertices[f[0]])
-		// pt2 := (vec3.T)(mvertices[f[1]])
-		// pt3 := (vec3.T)(mvertices[f[2]])
+			v0 := mvertices[f[0]]
+			v1 := mvertices[f[1]]
+			v2 := mvertices[f[2]]
 
-		// sub1 := vec3.Sub(&pt2, &pt1)
-		// sub1.Normalize()
-		// sub2 := vec3.Sub(&pt3, &pt1)
-		// sub2.Normalize()
+			edge1 := [3]float64{v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]}
+			edge2 := [3]float64{v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]}
 
-		// cro := vec3.Cross(&sub1, &sub2)
-		// cro.Normalize()
-		// normalsPerFace = append(normalsPerFace, &cro)
-		// areaPerFace = append(areaPerFace, triangleArea(&pt1, &pt2))
+			normal := [3]float64{
+				edge1[1]*edge2[2] - edge1[2]*edge2[1],
+				edge1[2]*edge2[0] - edge1[0]*edge2[2],
+				edge1[0]*edge2[1] - edge1[1]*edge2[0],
+			}
+
+			length := math.Sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2])
+			if length > 0 {
+				normal[0] /= length
+				normal[1] /= length
+				normal[2] /= length
+			}
+
+			normals[f[0]][0] += normal[0]
+			normals[f[0]][1] += normal[1]
+			normals[f[0]][2] += normal[2]
+
+			normals[f[1]][0] += normal[0]
+			normals[f[1]][1] += normal[1]
+			normals[f[1]][2] += normal[2]
+
+			normals[f[2]][0] += normal[0]
+			normals[f[2]][1] += normal[1]
+			normals[f[2]][2] += normal[2]
+		}
 
 		t = t.GetLink()
 		if t == nil {
@@ -440,35 +470,20 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 		}
 	}
 
-	// for i := range mfaces {
-	// 	f := &mfaces[i]
-	// 	weightedNormal := (*normalsPerFace[i]).Scale(areaPerFace[i])
-
-	// 	n1 := (vec3.T)(normals[f[0]])
-	// 	n1.Add(weightedNormal)
-	// 	n1.Normalize()
-	// 	n2 := (vec3.T)(normals[f[1]])
-	// 	n2.Add(weightedNormal)
-	// 	n2.Normalize()
-	// 	n3 := (vec3.T)(normals[f[2]])
-	// 	n3.Add(weightedNormal)
-	// 	n3.Normalize()
-
-	// 	normals[f[0]] = (Normal)(n1)
-	// 	normals[f[1]] = (Normal)(n2)
-	// 	normals[f[2]] = (Normal)(n3)
-	// }
+	for i := range normals {
+		n := &normals[i]
+		length := math.Sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2])
+		if length > 0 {
+			n[0] /= length
+			n[1] /= length
+			n[2] /= length
+		}
+	}
 
 	mesh := new(Mesh)
 	mesh.BBox[0] = [3]float64{minx, miny, minz}
 	mesh.BBox[1] = [3]float64{maxx, maxy, maxz}
-	mesh.initFromDecomposed(mvertices, mfaces, nil)
+	mesh.initFromDecomposed(mvertices, mfaces, normals)
+	mesh.DiscardFaces = discardFaces
 	return mesh
 }
-
-// func triangleArea(a, b *vec3.T) float64 {
-// 	i := math.Pow(a[1]*b[2]-a[2]*b[1], 2)
-// 	j := math.Pow(a[2]*b[0]-a[0]*b[2], 2)
-// 	k := math.Pow(a[0]*b[1]-a[1]*b[0], 2)
-// 	return 0.5 * math.Sqrt(i+j+k)
-// }

@@ -33,14 +33,19 @@ func (tm *TileMaker) GenTile(scale bool) (*Mesh, error) {
 	tileBBox[4] = tm.mesh.BBox[1][1]
 	tileBBox[5] = tm.mesh.BBox[1][2]
 	if scale {
-		tileInverseScaleX := 1.0 / tileBBox.Width()
-		tileInverseScaleY := 1.0 / tileBBox.Height()
-		dp := tileBBox.Depth()
-		if dp == 0 {
-			dp = 1
+		tileInverseScaleX := 1.0
+		tileInverseScaleY := 1.0
+		tileInverseScaleZ := 1.0
+
+		if width := tileBBox.Width(); width > 0 {
+			tileInverseScaleX = 1.0 / width
 		}
-		//TODO fix potential division by zero
-		tileInverseScaleZ := 1.0 / dp
+		if height := tileBBox.Height(); height > 0 {
+			tileInverseScaleY = 1.0 / height
+		}
+		if depth := tileBBox.Depth(); depth > 0 {
+			tileInverseScaleZ = 1.0 / depth
+		}
 
 		ctx := tileBBox[0]
 		cty := tileBBox[1]

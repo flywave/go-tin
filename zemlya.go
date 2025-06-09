@@ -360,7 +360,6 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	h := z.Raster.Rows()
 
 	var mvertices []Vertex
-	var discardFaces []Face
 
 	vertexID := NewRasterInt(h, w, 0)
 	noDataValue := z.Raster.NoData.(float64)
@@ -408,14 +407,6 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 		p2 := t.point2()
 		p3 := t.point3()
 
-		r1 := z.Result.Value(int(p1[1]), int(p1[0]))
-		r2 := z.Result.Value(int(p2[1]), int(p2[0]))
-		r3 := z.Result.Value(int(p3[1]), int(p3[0]))
-
-		hasNoData := isNoData(r1, noDataValue) ||
-			isNoData(r2, noDataValue) ||
-			isNoData(r3, noDataValue)
-
 		if !IsCCW(p1, p2, p3) {
 			f[0] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
 			f[1] = VertexIndex(vertexID.Value(int(p2[1]), int(p2[0])))
@@ -426,43 +417,39 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 			f[2] = VertexIndex(vertexID.Value(int(p1[1]), int(p1[0])))
 		}
 
-		if hasNoData {
-			discardFaces = append(discardFaces, f)
-		} else {
-			mfaces = append(mfaces, f)
+		mfaces = append(mfaces, f)
 
-			v0 := mvertices[f[0]]
-			v1 := mvertices[f[1]]
-			v2 := mvertices[f[2]]
+		v0 := mvertices[f[0]]
+		v1 := mvertices[f[1]]
+		v2 := mvertices[f[2]]
 
-			edge1 := [3]float64{v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]}
-			edge2 := [3]float64{v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]}
+		edge1 := [3]float64{v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]}
+		edge2 := [3]float64{v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]}
 
-			normal := [3]float64{
-				edge1[1]*edge2[2] - edge1[2]*edge2[1],
-				edge1[2]*edge2[0] - edge1[0]*edge2[2],
-				edge1[0]*edge2[1] - edge1[1]*edge2[0],
-			}
-
-			length := math.Sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2])
-			if length > 0 {
-				normal[0] /= length
-				normal[1] /= length
-				normal[2] /= length
-			}
-
-			normals[f[0]][0] += normal[0]
-			normals[f[0]][1] += normal[1]
-			normals[f[0]][2] += normal[2]
-
-			normals[f[1]][0] += normal[0]
-			normals[f[1]][1] += normal[1]
-			normals[f[1]][2] += normal[2]
-
-			normals[f[2]][0] += normal[0]
-			normals[f[2]][1] += normal[1]
-			normals[f[2]][2] += normal[2]
+		normal := [3]float64{
+			edge1[1]*edge2[2] - edge1[2]*edge2[1],
+			edge1[2]*edge2[0] - edge1[0]*edge2[2],
+			edge1[0]*edge2[1] - edge1[1]*edge2[0],
 		}
+
+		length := math.Sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2])
+		if length > 0 {
+			normal[0] /= length
+			normal[1] /= length
+			normal[2] /= length
+		}
+
+		normals[f[0]][0] += normal[0]
+		normals[f[0]][1] += normal[1]
+		normals[f[0]][2] += normal[2]
+
+		normals[f[1]][0] += normal[0]
+		normals[f[1]][1] += normal[1]
+		normals[f[1]][2] += normal[2]
+
+		normals[f[2]][0] += normal[0]
+		normals[f[2]][1] += normal[1]
+		normals[f[2]][2] += normal[2]
 
 		t = t.GetLink()
 		if t == nil {
@@ -484,6 +471,5 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	mesh.BBox[0] = [3]float64{minx, miny, minz}
 	mesh.BBox[1] = [3]float64{maxx, maxy, maxz}
 	mesh.initFromDecomposed(mvertices, mfaces, normals)
-	mesh.DiscardFaces = discardFaces
 	return mesh
 }

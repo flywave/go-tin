@@ -5,12 +5,11 @@ import (
 )
 
 type Mesh struct {
-	Vertices     []Vertex
-	Normals      []Normal
-	Faces        []Face
-	Triangles    []Triangle
-	BBox         [2][3]float64
-	DiscardFaces []Face
+	Vertices  []Vertex
+	Normals   []Normal
+	Faces     []Face
+	Triangles []Triangle
+	BBox      [2][3]float64
 }
 
 func (m *Mesh) initFromDecomposed(vertices []Vertex, faces []Face, norl []Normal) {

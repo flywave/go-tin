@@ -38,7 +38,8 @@ func (t *DelaunayTriangle) dontAnchor(e *QuadEdge) {
 	if t == nil {
 		fmt.Println(".....")
 	}
-	if t.Anchor == e {
+
+	if e != nil && t.Anchor == e {
 		t.Anchor = e.LeftNext()
 	}
 }
@@ -133,7 +134,7 @@ func (m *DelaunayMesh) onQuadEdge(x [2]float64, e *QuadEdge) bool {
 	return (math.Abs(l.Eval(x)) < EPS)
 }
 
-func (m *DelaunayMesh) initMeshFromBBox(bb BBox2d) {
+func (m *DelaunayMesh) InitMeshFromBBox(bb BBox2d) {
 	a := [2]float64{bb[0], bb[1]}
 	d := [2]float64{bb[2], bb[3]}
 	b := [2]float64{bb[2], bb[1]}

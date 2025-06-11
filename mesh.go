@@ -19,7 +19,7 @@ func (m *Mesh) initFromDecomposed(vertices []Vertex, faces []Face, norl []Normal
 	m.Triangles = make([]Triangle, 0)
 }
 
-func (m *Mesh) initFromTriangles(triangles []Triangle) {
+func (m *Mesh) InitFromTriangles(triangles []Triangle) {
 	m.Triangles = triangles
 	m.Faces = make([]Face, 0)
 	m.Vertices = make([]Vertex, 0)
@@ -44,14 +44,14 @@ func (m *Mesh) hasDecomposed() bool {
 	return len(m.Vertices) != 0 && len(m.Faces) != 0
 }
 
-func (m *Mesh) addTriangle(t Triangle, decompose bool) {
+func (m *Mesh) AddTriangle(t Triangle, decompose bool) {
 	m.Triangles = append(m.Triangles, t)
 	if decompose || m.hasDecomposed() {
 		m.decomposeTriangle(t)
 	}
 }
 
-func (m *Mesh) generateTriangles() {
+func (m *Mesh) GenerateTriangles() {
 	if m.hasTriangles() {
 		return
 	}
@@ -74,7 +74,7 @@ func (m *Mesh) generateTriangles() {
 	}
 }
 
-func (m *Mesh) generateDecomposed() {
+func (m *Mesh) GenerateDecomposed() {
 	if m.hasDecomposed() {
 		return
 	}
@@ -101,22 +101,22 @@ func (m *Mesh) generateDecomposed() {
 	}
 }
 
-func (m *Mesh) clearTriangles() {
+func (m *Mesh) ClearTriangles() {
 	m.Triangles = make([]Triangle, 0)
 }
 
-func (m *Mesh) clearDecomposed() {
+func (m *Mesh) ClearDecomposed() {
 	m.Faces = make([]Face, 0)
 	m.Vertices = make([]Vertex, 0)
 }
 
-func (m *Mesh) grabTriangles(into []Triangle) []Triangle {
+func (m *Mesh) GrabTriangles(into []Triangle) []Triangle {
 	temp := m.Triangles
 	m.Triangles = into
 	return temp
 }
 
-func (m *Mesh) grabDecomposed(vertices []Vertex, faces []Face) ([]Vertex, []Face) {
+func (m *Mesh) GrabDecomposed(vertices []Vertex, faces []Face) ([]Vertex, []Face) {
 	tempV := m.Vertices
 	tempF := m.Faces
 	m.Vertices = tempV
@@ -124,7 +124,7 @@ func (m *Mesh) grabDecomposed(vertices []Vertex, faces []Face) ([]Vertex, []Face
 	return tempV, tempF
 }
 
-func (m *Mesh) composeTriangle(f Face) *Triangle {
+func (m *Mesh) ComposeTriangle(f Face) *Triangle {
 	out := new(Triangle)
 	for i := 0; i < 3; i++ {
 		if int(f[i]) >= len(m.Vertices) {
@@ -173,7 +173,7 @@ func (m *Mesh) decomposeTriangle(t Triangle) {
 func faceEdgeCrossesOtherEdge(fi int, faces []Face, vertices []Vertex) bool {
 	f := faces[fi]
 	faceEdges := []Edge{
-		Edge{f[0], f[1]}, Edge{f[1], f[2]}, Edge{f[2], f[0]},
+		{f[0], f[1]}, {f[1], f[2]}, {f[2], f[0]},
 	}
 
 	var ft Triangle

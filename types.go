@@ -41,10 +41,7 @@ func triangleSemanticEqual(l, r Triangle) bool {
 	r3[1] = r[0]
 	r3[2] = r[1]
 	r3[0] = r[2]
-	if l.Equal(r3) {
-		return true
-	}
-	return false
+	return l.Equal(r3)
 }
 
 type VertexIndex int
@@ -86,7 +83,7 @@ func (e *Edge) Intersects2d(o Edge, vertices []Vertex) bool {
 
 	intersection_point :=
 		intersect2DLinesegmentByLine(p0, p1, l0, l1)
-	if (intersection_point[0] == math.NaN()) || (intersection_point[1] == math.NaN()) {
+	if math.IsNaN(intersection_point[0]) || math.IsNaN(intersection_point[1]) {
 		return false
 	}
 
@@ -117,10 +114,10 @@ func intersect2DLinesegmentByLine(p0, p1, l0, l1 []float64) []float64 {
 		(y1-y2)*(x3*y4-y3*x4)) /
 		denom
 
-	if cX == -0.0 {
+	if cX == 0.0 {
 		cX = 0.0
 	}
-	if cY == -0.0 {
+	if cY == 0.0 {
 		cY = 0.0
 	}
 	return []float64{cX, cY}
@@ -317,13 +314,13 @@ func (b *BBox3d) Grow(delta float64) {
 }
 
 func absZero(v [3]float64) [3]float64 {
-	if v[0] == -0.0 {
+	if v[0] == 0.0 {
 		v[0] = 0.0
 	}
-	if v[1] == -0.0 {
+	if v[1] == 0.0 {
 		v[1] = 0.0
 	}
-	if v[2] == -0.0 {
+	if v[2] == 0.0 {
 		v[2] = 0.0
 	}
 	return v
@@ -611,7 +608,7 @@ func compareLength2D(a1, a2, b1, b2 [2]float64) int {
 
 func hasNaNs(t Triangle) bool {
 	for i := 0; i < 3; i++ {
-		if t[i][0] == math.NaN() || t[i][1] == math.NaN() || t[i][2] == math.NaN() {
+		if math.IsNaN(t[i][0]) || math.IsNaN(t[i][1]) || math.IsNaN(t[i][2]) {
 			return true
 		}
 	}

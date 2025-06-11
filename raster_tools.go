@@ -30,7 +30,7 @@ func AverageNanArr(toAverage []float64) float64 {
 	avgCount := 0
 	for i := 0; i < len(toAverage); i++ {
 		v := toAverage[i]
-		if v != math.NaN() {
+		if !math.IsNaN(v) {
 			sum += v
 			avgCount++
 		}

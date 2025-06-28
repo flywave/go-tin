@@ -22,6 +22,7 @@ func averageOf(d1, d2, d3, d4, noDataValue float64) float64 {
 	return math.NaN()
 }
 
+// https://isprs-archives.copernicus.org/articles/XLI-B2/459/2016/isprs-archives-XLI-B2-459-2016.pdf
 type ZemlyaMesh struct {
 	RasterMesh
 	Sample       *RasterDouble

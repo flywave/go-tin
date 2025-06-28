@@ -433,7 +433,7 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 		}
 
 		length := math.Sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2])
-		if length > 0 {
+		if length > 1e-8 {
 			normal[0] /= length
 			normal[1] /= length
 			normal[2] /= length

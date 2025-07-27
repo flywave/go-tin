@@ -25,6 +25,7 @@ func averageOf(noDataValue float64, values ...float64) float64 {
 	return sum / float64(count)
 }
 
+// https://isprs-archives.copernicus.org/articles/XLI-B2/459/2016/isprs-archives-XLI-B2-459-2016.pdf
 type ZemlyaMesh struct {
 	RasterMesh
 	Sample       *RasterDouble

@@ -49,8 +49,18 @@ func InTriangleCCW(a, b, c [2]float64, p [2]float64) bool {
 }
 
 func InCircumcircle(a, b, c, d [2]float64) bool {
-	return (a[0]*a[0]+a[1]*a[1])*triArea(b, c, d)-(b[0]*b[0]+b[1]*b[1])*triArea(a, c, d)+(c[0]*c[0]+c[1]*c[1])*triArea(a, b, d)-(d[0]*d[0]+d[1]*d[1])*triArea(a, b, c) >
-		EPS
+    // 直接使用坐标值
+    ax, ay := a[0], a[1]
+    bx, by := b[0], b[1]
+    cx, cy := c[0], c[1]
+    dx, dy := d[0], d[1]
+    
+    // 计算行列式（完全展开）
+    det := (bx*by - by*bx)*(cx*cx + cy*cy - ax*ax - ay*ay) +
+           (cx*cy - cy*cx)*(dx*dx + dy*dy - ax*ax - ay*ay) +
+           (dx*dy - dy*dx)*(bx*bx + by*by - ax*ax - ay*ay)
+    
+    return det > EPS
 }
 
 func Circumcenter(a, b, c [2]float64) [2]float64 {

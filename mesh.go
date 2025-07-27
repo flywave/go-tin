@@ -12,17 +12,121 @@ type Mesh struct {
 	BBox      [2][3]float64
 }
 
+// 更新包围盒，添加顶点
+func (m *Mesh) updateBBox(v Vertex) {
+	if m.BBox[0][0] > v[0] {
+		m.BBox[0][0] = v[0]
+	}
+	if m.BBox[0][1] > v[1] {
+		m.BBox[0][1] = v[1]
+	}
+	if m.BBox[0][2] > v[2] {
+		m.BBox[0][2] = v[2]
+	}
+
+	if m.BBox[1][0] < v[0] {
+		m.BBox[1][0] = v[0]
+	}
+	if m.BBox[1][1] < v[1] {
+		m.BBox[1][1] = v[1]
+	}
+	if m.BBox[1][2] < v[2] {
+		m.BBox[1][2] = v[2]
+	}
+}
+
+// 初始化包围盒
+func (m *Mesh) initBBox() {
+	m.BBox[0] = [3]float64{math.MaxFloat64, math.MaxFloat64, math.MaxFloat64}
+	m.BBox[1] = [3]float64{-math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64}
+}
+
 func (m *Mesh) initFromDecomposed(vertices []Vertex, faces []Face, norl []Normal) {
 	m.Vertices = vertices
 	m.Faces = faces
 	m.Normals = norl
 	m.Triangles = make([]Triangle, 0)
+
+	// 初始化并计算包围盒
+	m.initBBox()
+	for _, v := range vertices {
+		m.updateBBox(v)
+	}
 }
 
 func (m *Mesh) InitFromTriangles(triangles []Triangle) {
 	m.Triangles = triangles
 	m.Faces = make([]Face, 0)
 	m.Vertices = make([]Vertex, 0)
+	m.initBBox()
+}
+
+func (m *Mesh) AddTriangle(t Triangle, decompose bool) {
+	m.Triangles = append(m.Triangles, t)
+	if decompose || m.hasDecomposed() {
+		m.decomposeTriangle(t)
+	}
+
+	// 更新包围盒
+	for _, v := range t {
+		m.updateBBox(v)
+	}
+}
+
+func (m *Mesh) decomposeTriangle(t Triangle) {
+	f := Face{math.MaxUint32, math.MaxUint32, math.MaxUint32}
+	found := 0
+
+	for j := 0; j < len(m.Vertices) && found < 3; j++ {
+		v := m.Vertices[j]
+		for i := 0; i < 3; i++ {
+			if t[i].Equal(v) {
+				f[i] = VertexIndex(j)
+				found++
+			}
+		}
+	}
+
+	if found != 3 {
+		for i := 0; i < 3; i++ {
+			if f[i] == math.MaxUint32 {
+				f[i] = VertexIndex(len(m.Vertices))
+				m.Vertices = append(m.Vertices, t[i])
+				m.updateBBox(t[i]) // 更新包围盒
+			}
+		}
+	}
+
+	m.Faces = append(m.Faces, f)
+}
+
+func (m *Mesh) GenerateDecomposed() {
+	if m.hasDecomposed() {
+		return
+	}
+
+	m.Faces = make([]Face, 0, len(m.Triangles))
+	m.Vertices = make([]Vertex, 0, int(float64(len(m.Triangles))*0.66))
+	m.initBBox() // 初始化包围盒
+
+	vertexLookup := make(map[Vertex]VertexIndex)
+
+	for t := range m.Triangles {
+		var f Face
+		for i := 0; i < 3; i++ {
+			v := m.Triangles[t][i]
+			val, ok := vertexLookup[v]
+			if ok {
+				f[i] = val
+			} else {
+				f[i] = VertexIndex(len(m.Vertices))
+				vertexLookup[v] = VertexIndex(len(m.Vertices))
+				m.Vertices = append(m.Vertices, v)
+				m.updateBBox(v) // 更新包围盒
+			}
+		}
+		m.Faces = append(m.Faces, f)
+	}
 }
 
 func (m *Mesh) Count() int {
@@ -42,13 +146,6 @@ func (m *Mesh) hasTriangles() bool {
 
 func (m *Mesh) hasDecomposed() bool {
 	return len(m.Vertices) != 0 && len(m.Faces) != 0
-}
-
-func (m *Mesh) AddTriangle(t Triangle, decompose bool) {
-	m.Triangles = append(m.Triangles, t)
-	if decompose || m.hasDecomposed() {
-		m.decomposeTriangle(t)
-	}
 }
 
 func (m *Mesh) GenerateTriangles() {
@@ -71,33 +168,6 @@ func (m *Mesh) GenerateTriangles() {
 		if isValid {
 			m.Triangles[f] = t
 		}
-	}
-}
-
-func (m *Mesh) GenerateDecomposed() {
-	if m.hasDecomposed() {
-		return
-	}
-
-	m.Faces = make([]Face, len(m.Triangles))
-	m.Vertices = make([]Vertex, 0, int(float64(len(m.Triangles))*0.66))
-
-	vertexLookup := make(map[Vertex]VertexIndex)
-
-	for t := range m.Triangles {
-		var f Face
-		for i := 0; i < 3; i++ {
-			v := m.Triangles[t][i]
-			val, ok := vertexLookup[v]
-			if ok {
-				f[i] = val
-			} else {
-				f[i] = VertexIndex(len(m.Vertices))
-				vertexLookup[v] = VertexIndex(len(m.Vertices))
-				m.Vertices = append(m.Vertices, v)
-			}
-		}
-		m.Faces = append(m.Faces, f)
 	}
 }
 
@@ -143,31 +213,6 @@ func (m *Mesh) GetBbox() BBox3d {
 		out.Add(m.Vertices[i])
 	}
 	return out
-}
-
-func (m *Mesh) decomposeTriangle(t Triangle) {
-	f := Face{math.MaxUint32, math.MaxUint32, math.MaxUint32}
-
-	found := 0
-	for j := 0; j < len(m.Vertices) && found < 3; j++ {
-		v := m.Vertices[j]
-		for i := 0; i < 3; i++ {
-			if t[i].Equal(v) {
-				f[i] = VertexIndex(j)
-				found++
-			}
-		}
-	}
-	if found != 3 {
-		for i := 0; i < 3; i++ {
-			if f[i] == math.MaxUint32 {
-				f[i] = VertexIndex(len(m.Vertices))
-				m.Vertices = append(m.Vertices, t[i])
-			}
-		}
-	}
-
-	m.Faces = append(m.Faces, f)
 }
 
 func faceEdgeCrossesOtherEdge(fi int, faces []Face, vertices []Vertex) bool {

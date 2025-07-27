@@ -15,7 +15,7 @@ func NewTileMaker(m *Mesh) *TileMaker {
 	return &TileMaker{mesh: m}
 }
 
-func checkTriangleInTile(t Triangle, tileBounds BBox2d) bool {
+func CheckTriangleInTile(t Triangle, tileBounds BBox2d) bool {
 	triangleBounds := NewBBox2d()
 	tileBounds.Add(t)
 	return triangleBounds.Intersects(tileBounds, EPS)

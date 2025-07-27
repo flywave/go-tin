@@ -150,40 +150,65 @@ func NewRaster(row, column, dataType int) *Raster {
 func NewRasterWithData(row, column int, data interface{}) *Raster {
 	r := Raster{}
 	r.Size = [2]int{row, column}
-	r.NoData = -400.0
 
 	switch t := data.(type) {
 	case []int8:
 		r.Type = RASTER_DATA_TYPE_INT8
 		r.Data = t
+		r.NoData = int8(-128) // 最小可能值
 	case []uint8:
 		r.Type = RASTER_DATA_TYPE_UINT8
 		r.Data = t
+		r.NoData = uint8(0) // 0值作为无效值
 	case []int16:
 		r.Type = RASTER_DATA_TYPE_INT16
 		r.Data = t
+		r.NoData = int16(-32768) // 最小可能值
 	case []uint16:
 		r.Type = RASTER_DATA_TYPE_UINT16
 		r.Data = t
+		r.NoData = uint16(0) // 0值作为无效值
 	case []int32:
 		r.Type = RASTER_DATA_TYPE_INT32
 		r.Data = t
+		r.NoData = int32(-2147483648) // 最小可能值
 	case []uint32:
 		r.Type = RASTER_DATA_TYPE_UINT32
 		r.Data = t
+		r.NoData = uint32(0) // 0值作为无效值
 	case []int64:
 		r.Type = RASTER_DATA_TYPE_INT64
 		r.Data = t
+		r.NoData = int64(-9223372036854775808) // 最小可能值
 	case []uint64:
 		r.Type = RASTER_DATA_TYPE_UINT64
 		r.Data = t
+		r.NoData = uint64(0) // 0值作为无效值
 	case []float32:
 		r.Type = RASTER_DATA_TYPE_FLOAT32
 		r.Data = t
+		r.NoData = float32(math.NaN()) // NaN表示无效
 	case []float64:
 		r.Type = RASTER_DATA_TYPE_FLOAT64
 		r.Data = t
+		r.NoData = math.NaN() // NaN表示无效
+	default:
+		// 处理未知类型情况
+		r.Type = RASTER_DATA_TYPE_FLOAT64
+		r.Data = make([]float64, row*column)
+		r.NoData = math.NaN()
 	}
+
+	// 自动计算边界（如果位置和大小已设置）
+	if r.cellsize > 0 {
+		r.Bounds = [4]float64{
+			r.pos[1] + float64(r.Rows())*r.cellsize, // North
+			r.pos[1],                                // South
+			r.pos[0] + float64(r.Cols())*r.cellsize, // East
+			r.pos[0],                                // West
+		}
+	}
+
 	return &r
 }
 
@@ -191,6 +216,12 @@ func (r *Raster) SetXYPos(x, y, res float64) {
 	r.setCellSize(res)
 	r.setPosX(x)
 	r.setPosY(y)
+	r.Bounds = [4]float64{
+		y + float64(r.Rows())*res, // North
+		y,                         // South
+		x + float64(r.Cols())*res, // East
+		x,                         // West
+	}
 }
 
 func (r *Raster) SetTransform(trans func(*Vertex) Vertex) { r.transform = trans }
@@ -306,55 +337,88 @@ func (r *Raster) GetRow(row int) interface{} {
 	return nil
 }
 
-func (r *Raster) col2x(c int) float64 {
+// ColToX converts column index to X coordinate (center of cell)
+func (r *Raster) ColToX(col int) float64 {
+	// Handle edge cases for hemispheric grids
 	if r.Hemlines {
-		if c == r.Size[0]-1 {
-			c -= 1
-		} else if c == 0 {
-			c += 1
+		switch col {
+		case r.Size[1] - 1:
+			col--
+		case 0:
+			col++
 		}
 	}
-	return r.pos[0] + (float64(c)+0.5)*r.cellsize
+	return r.pos[0] + (float64(col)+0.5)*r.cellsize
 }
 
-func (r *Raster) x2col(x float64) int {
-	if r.cellsize > 0 {
-		return (int)(0.5 + ((x - r.pos[0] - 0.5*r.cellsize) / r.cellsize))
+// XToCol converts X coordinate to column index
+func (r *Raster) XToCol(x float64) int {
+	if r.cellsize <= 0 {
+		return 0
 	}
-	return 0
-}
+	col := int(math.Floor((x - r.pos[0]) / r.cellsize))
 
-func (r *Raster) y2row(y float64) int {
-	if r.cellsize > 0 {
-		rll := (int)(0.5 + (y-r.pos[1]-0.5*r.cellsize)/r.cellsize)
-		rtl := r.Rows() - rll - 1
-		return rtl
+	// Boundary checks
+	if col < 0 {
+		return 0
 	}
-	return 0
+	if col >= r.Size[1] {
+		return r.Size[1] - 1
+	}
+	return col
 }
 
-func (r *Raster) row2y(rtl int) float64 {
+// RowToY converts row index to Y coordinate (center of cell)
+func (r *Raster) RowToY(row int) float64 {
+	// Handle edge cases for hemispheric grids
 	if r.Hemlines {
-		if rtl == r.Size[1]-1 {
-			rtl -= 1
-		} else if rtl == 0 {
-			rtl += 1
+		switch row {
+		case r.Size[0] - 1:
+			row--
+		case 0:
+			row++
 		}
-
 	}
-	rll := r.Rows() - 1 - rtl
-	return r.pos[1] + (float64(rll)+0.5)*r.cellsize
+	// Convert from top-left origin to bottom-left origin
+	rowFromBottom := r.Size[0] - 1 - row
+	return r.pos[1] + (float64(rowFromBottom)+0.5)*r.cellsize
 }
 
-func (r *Raster) rowll2y(rll int) float64 {
-	return r.pos[1] + (float64(rll)+0.5)*r.cellsize
+// YToRow converts Y coordinate to row index
+func (r *Raster) YToRow(y float64) int {
+	if r.cellsize <= 0 {
+		return 0
+	}
+
+	// Calculate row from bottom
+	rowFromBottom := int(math.Floor((y - r.pos[1]) / r.cellsize))
+
+	// Convert to top-left origin
+	row := r.Size[0] - 1 - rowFromBottom
+
+	// Boundary checks
+	if row < 0 {
+		return 0
+	}
+	if row >= r.Size[0] {
+		return r.Size[0] - 1
+	}
+	return row
 }
 
-func (r *Raster) colll2x(c int) float64 { return r.col2x(c) }
+// RowBottomToY converts row index from bottom to Y coordinate
+func (r *Raster) RowBottomToY(rowFromBottom int) float64 {
+	return r.pos[1] + (float64(rowFromBottom)+0.5)*r.cellsize
+}
+
+// ColLeftToX converts column index to X coordinate
+func (r *Raster) ColLeftToX(col int) float64 {
+	return r.ColToX(col)
+}
 
 type VertexReceiverFn func(x, y float64, v interface{})
 
-func (r *Raster) toVertices(receiverFn VertexReceiverFn) {
+func (r *Raster) ToVertices(receiverFn VertexReceiverFn) {
 	cs := r.cellsize
 	xpos := r.pos[0]
 	ypos := r.pos[1]
@@ -394,6 +458,14 @@ func NewRasterDoubleWithData(row, column int, data []float64) *RasterDouble {
 	r.Data = data
 	r.NoData = math.NaN()
 	return &r
+}
+
+func (r *RasterDouble) Fill(data float64) {
+	if t, ok := r.Data.([]float64); ok {
+		for i := range t {
+			t[i] = data
+		}
+	}
 }
 
 func (r *RasterDouble) Value(row, column int) float64 {
@@ -446,6 +518,14 @@ func NewRasterCharWithData(row, column int, data []int8) *RasterChar {
 	return &r
 }
 
+func (r *RasterChar) Fill(data int8) {
+	if t, ok := r.Data.([]int8); ok {
+		for i := range t {
+			t[i] = data
+		}
+	}
+}
+
 func (r *RasterChar) Value(row, column int) int8 {
 	switch t := r.Data.(type) {
 	case []int8:
@@ -494,6 +574,14 @@ func NewRasterIntWithData(row, column int, data []int32) *RasterInt {
 	r.NoData = math.NaN()
 
 	return &r
+}
+
+func (r *RasterInt) Fill(data int32) {
+	if t, ok := r.Data.([]int32); ok {
+		for i := range t {
+			t[i] = data
+		}
+	}
 }
 
 func (r *RasterInt) Value(row, column int) int32 {

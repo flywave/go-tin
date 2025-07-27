@@ -5,12 +5,14 @@ import (
 	"math"
 )
 
+// PQ 优先级队列实现（最大堆）
 type PQ []*Candidate
 
 func (pq PQ) Len() int { return len(pq) }
 
 func (pq PQ) Less(i, j int) bool {
-	return pq[i].Importance < pq[j].Importance
+	// 修改为最大堆：重要性大的元素优先
+	return pq[i].Importance > pq[j].Importance
 }
 
 func (pq PQ) Swap(i, j int) {
@@ -20,27 +22,22 @@ func (pq PQ) Swap(i, j int) {
 }
 
 func (pq *PQ) Push(x interface{}) {
-	temp := x.(*Candidate)
-	temp.index = len(*pq)
-	*pq = append(*pq, temp)
-	// st.Slice(*pq, func(i, j int) bool {
-	// 	return (*pq)[i].Importance > (*pq)[j].Importance
-	// })
+	n := len(*pq)
+	item := x.(*Candidate)
+	item.index = n
+	*pq = append(*pq, item)
 }
 
 func (pq *PQ) Pop() interface{} {
-	temp := (*pq)[0]
-	temp.index = -1
-	l := len(*pq)
-	if l > 1 {
-		*pq = (*pq)[1:]
-	} else {
-		*pq = PQ{}
-	}
-	return temp
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	item.index = -1
+	*pq = old[0 : n-1]
+	return item
 }
 
-func (pq *PQ) update(entry *Candidate, importance float64) {
+func (pq *PQ) Update(entry *Candidate, importance float64) {
 	entry.Importance = importance
 	heap.Fix(pq, entry.index)
 }
@@ -72,7 +69,9 @@ type CandidateList struct {
 	Candidates PQ
 }
 
-func (cl *CandidateList) Push(candidate *Candidate) { cl.Candidates.Push(candidate) }
+func (cl *CandidateList) Push(candidate *Candidate) {
+	heap.Push(&cl.Candidates, candidate) // 使用heap.Push确保堆性质
+}
 
 func (cl *CandidateList) Size() int { return cl.Candidates.Len() }
 
@@ -82,26 +81,19 @@ func (cl *CandidateList) GrabGreatest() *Candidate {
 	if cl.Empty() {
 		return &Candidate{}
 	}
-
-	candidate := cl.Candidates.Pop()
+	candidate := heap.Pop(&cl.Candidates)
 	return candidate.(*Candidate)
 }
 
 func orderTrianglePoints(p *[3][2]float64) {
 	if p[0][1] > p[1][1] {
-		tmp := p[0]
-		p[0] = p[1]
-		p[1] = tmp
+		p[0], p[1] = p[1], p[0]
 	}
 	if p[1][1] > p[2][1] {
-		tmp := p[1]
-		p[1] = p[2]
-		p[2] = tmp
+		p[1], p[2] = p[2], p[1]
 	}
 	if p[0][1] > p[1][1] {
-		tmp := p[0]
-		p[0] = p[1]
-		p[1] = tmp
+		p[0], p[1] = p[1], p[0]
 	}
 }
 
@@ -109,7 +101,7 @@ func isNoData(value, noDataValue float64) bool {
 	return math.IsNaN(value) || value == noDataValue
 }
 
-func computePlane(plane Plane, t *DelaunayTriangle, raster *RasterDouble) Plane {
+func computePlane(t *DelaunayTriangle, raster *RasterDouble) Plane {
 	p1 := t.point1()
 	p2 := t.point2()
 	p3 := t.point3()
@@ -131,11 +123,21 @@ func (r *RasterMesh) LoadRaster(raster *RasterDouble) {
 }
 
 func (r *RasterMesh) repairPoint(px, py float64) {
-	z := SampleNearestValidAvg(r.Raster, int(py), int(px), 1)
-	no_data_value := r.Raster.NoData.(float64)
-	if isNoData(z, no_data_value) {
-		r.Raster.SetValue(int(py), int(px), 0.0)
+	x, y := int(px), int(py)
+	noDataValue := r.Raster.NoData.(float64)
+
+	// 检查当前点是否有效
+	currentVal := r.Raster.Value(y, x)
+	if !isNoData(currentVal, noDataValue) {
+		return // 点已有有效值，无需修复
+	}
+
+	// 采样最近的有效平均值
+	z := SampleNearestValidAvg(r.Raster, y, x, 3) // 搜索半径设为3
+
+	if isNoData(z, noDataValue) {
+		r.Raster.SetValue(y, x, 0.0) // 默认值
 	} else {
-		r.Raster.SetValue(int(py), int(px), z)
+		r.Raster.SetValue(y, x, z)
 	}
 }

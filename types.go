@@ -26,7 +26,7 @@ func (l Triangle) Equal(r Triangle) bool {
 	return false
 }
 
-func triangleSemanticEqual(l, r Triangle) bool {
+func TriangleSemanticEqual(l, r Triangle) bool {
 	if l.Equal(r) {
 		return true
 	}
@@ -128,7 +128,7 @@ func isFacingUpwardsImpl(t0X, t0Y, t1X, t1Y, t2X, t2Y float64) bool {
 	return nZ >= 0
 }
 
-func isFacingUpwards(t Triangle) bool {
+func IsFacingUpwards(t Triangle) bool {
 	t0X := t[0][0]
 	t0Y := t[0][1]
 
@@ -255,7 +255,7 @@ func NewBBox3d() *BBox3d {
 	return &BBox3d{math.MaxFloat64, math.MaxFloat64, math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64}
 }
 
-func (b *BBox3d) to2d() BBox2d {
+func (b *BBox3d) To2d() BBox2d {
 	return BBox2d{b[0], b[1], b[3], b[4]}
 }
 
@@ -396,9 +396,10 @@ func Clip25DTriangleByLine(tv []Triangle, triangleIdx int, lorg, ldir [2]float64
 		}
 	}
 
-	if leftPointsCount == 0 {
+	switch leftPointsCount {
+	case 0:
 		t[0] = [3]float64{math.NaN(), math.NaN(), math.NaN()}
-	} else if leftPointsCount == 1 {
+	case 1:
 		var s0 [3]float64
 		var s1 [3]float64
 
@@ -415,7 +416,7 @@ func Clip25DTriangleByLine(tv []Triangle, triangleIdx int, lorg, ldir [2]float64
 		t[1] = s0
 		t[2] = s1
 		makeFrontFacing(&t)
-	} else if leftPointsCount == 2 {
+	case 2:
 		if otherSigns[0] == 0 {
 			return tv
 		}
@@ -593,7 +594,7 @@ func compareLength3D(a1, a2, b1, b2 [3]float64) int {
 	}
 }
 
-func compareLength2D(a1, a2, b1, b2 [2]float64) int {
+func CompareLength2D(a1, a2, b1, b2 [2]float64) int {
 	daSq := squared2DDistance(a1, a2)
 	dbSq := squared2DDistance(b1, b2)
 

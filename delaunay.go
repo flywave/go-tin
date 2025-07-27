@@ -1,7 +1,6 @@
 package tin
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 )
@@ -35,11 +34,11 @@ func (t *DelaunayTriangle) GetAnchor() *QuadEdge {
 }
 
 func (t *DelaunayTriangle) dontAnchor(e *QuadEdge) {
-	if t == nil {
-		fmt.Println(".....")
+	// 添加 nil 检查防止空指针异常
+	if t == nil || e == nil {
+		return
 	}
-
-	if e != nil && t.Anchor == e {
+	if t.Anchor == e {
 		t.Anchor = e.LeftNext()
 	}
 }
@@ -91,13 +90,21 @@ func (m *DelaunayMesh) connect(a *QuadEdge, b *QuadEdge) *QuadEdge {
 }
 
 func (m *DelaunayMesh) swap(e *QuadEdge) {
+	if e == nil || e.Sym() == nil {
+		return
+	}
 	f1 := e.LeftFace()
 	f2 := e.Sym().LeftFace()
 
 	SwapTriangles(e)
 
-	f1.reshape(e)
-	f2.reshape(e.Sym())
+	// Add nil checks before reshaping
+	if f1 != nil {
+		f1.reshape(e)
+	}
+	if f2 != nil {
+		f2.reshape(e.Sym())
+	}
 }
 
 func rightOf(p [2]float64, e *QuadEdge) bool {
@@ -112,26 +119,38 @@ func (m *DelaunayMesh) ccwBoundary(e *QuadEdge) bool {
 	return !rightOf(e.OrigPrev().Dest(), e)
 }
 
-func sub(x, y [2]float64) []float64 {
-	return []float64{(x[0] - y[0]), (x[1] - y[1])}
+func sub(x, y [2]float64) [2]float64 {
+	return [2]float64{x[0] - y[0], x[1] - y[1]}
+}
+
+func sqLength(v [2]float64) float64 {
+	return v[0]*v[0] + v[1]*v[1]
 }
 
 func (m *DelaunayMesh) onQuadEdge(x [2]float64, e *QuadEdge) bool {
-	t1 := length(sub(x, e.Orig()))
-	t2 := length(sub(x, e.Dest()))
+	// 使用平方距离比较避免开方运算
+	orig := e.Orig()
+	dest := e.Dest()
 
-	if t1 < EPS || t2 < EPS {
+	// 提前检查点重合
+	if sqLength(sub(x, orig)) < EPS*EPS || sqLength(sub(x, dest)) < EPS*EPS {
 		return true
 	}
 
-	t3 := length(sub(e.Orig(), e.Dest()))
+	// 检查是否在延长线上
+	edgeVec := sub(dest, orig)
+	edgeLenSq := sqLength(edgeVec)
+	toOrig := sub(x, orig)
+	toDest := sub(x, dest)
 
-	if t1 > t3 || t2 > t3 {
+	// 如果点在边的延长线上，但不在线段范围内
+	if sqLength(toOrig) > edgeLenSq || sqLength(toDest) > edgeLenSq {
 		return false
 	}
 
-	l := NewLine(e.Orig(), e.Dest())
-	return (math.Abs(l.Eval(x)) < EPS)
+	// 精确的共线检查
+	l := NewLine(orig, dest)
+	return math.Abs(l.Eval(x)) < EPS
 }
 
 func (m *DelaunayMesh) InitMeshFromBBox(bb BBox2d) {
@@ -194,7 +213,7 @@ func (m *DelaunayMesh) insert(x [2]float64, tri *DelaunayTriangle) {
 		e = m.locate(x, m.startingQuadEdge)
 	}
 
-	if (isEqual(x, e.Orig())) || (isEqual(x, e.Dest())) {
+	if isEqual(x, e.Orig()) || isEqual(x, e.Dest()) {
 		m.optimize(x, e)
 	} else {
 		startSpoke := m.spoke(x, e)
@@ -213,11 +232,13 @@ func triArea(a, b, c [2]float64) float64 {
 	return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0])
 }
 
-func nextRandomNumber() uint32 {
-	return rand.Uint32() % math.MaxUint32
-}
+var randPool = rand.New(rand.NewSource(rand.Int63())) // 重用随机数生成器
 
-func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
+func (m *DelaunayMesh) locate(x [2]float64, startEdge *QuadEdge) *QuadEdge {
+	if startEdge == nil {
+		return m.startingQuadEdge // 返回默认起始边
+	}
+	e := startEdge
 	t := triArea(x, e.Dest(), e.Orig())
 
 	if t > 0 {
@@ -234,8 +255,7 @@ func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
 
 		if td > 0 {
 			if to > 0 || (to == 0 && t == 0) {
-				m.startingQuadEdge = e
-				return e
+				break
 			} else {
 				t = to
 				e = eo
@@ -243,8 +263,7 @@ func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
 		} else {
 			if to > 0 {
 				if td == 0 && t == 0 {
-					m.startingQuadEdge = e
-					return e
+					break
 				} else {
 					t = td
 					e = ed
@@ -252,7 +271,7 @@ func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
 			} else {
 				if t == 0 && !leftOf(eo.Dest(), e) {
 					e = e.Sym()
-				} else if (nextRandomNumber() & 1) == 0 {
+				} else if randPool.Intn(2) == 0 { // 优化随机数生成
 					t = to
 					e = eo
 				} else {
@@ -262,104 +281,170 @@ func (m *DelaunayMesh) locate(x [2]float64, e *QuadEdge) *QuadEdge {
 			}
 		}
 	}
+
+	m.startingQuadEdge = e
+	return e
 }
 
 func (m *DelaunayMesh) spoke(x [2]float64, e *QuadEdge) *QuadEdge {
 	var newFaces [4]*DelaunayTriangle
-	facedex := 0
+	faceCount := 0
 
-	var boundaryQuadEdge *QuadEdge
+	var boundaryEdge *QuadEdge
 
-	lface := e.LeftFace()
-	lface.dontAnchor(e)
-	newFaces[facedex] = lface
-	facedex++
+	// 处理左边面 (添加nil检查)
+	leftFace := e.LeftFace()
+	if leftFace != nil {
+		leftFace.dontAnchor(e)
+		newFaces[faceCount] = leftFace
+		faceCount++
+	}
 
-	if m.onQuadEdge(x, e) {
+	// 检查是否在边上
+	onEdge := m.onQuadEdge(x, e)
+	if onEdge {
 		if m.ccwBoundary(e) {
-			boundaryQuadEdge = e
+			boundaryEdge = e
 		} else {
-			symLface := e.Sym().LeftFace()
-			newFaces[facedex] = symLface
-			facedex++
-			symLface.dontAnchor(e.Sym())
+			// 处理对称面 (添加nil检查)
+			symFace := e.Sym().LeftFace()
+			if symFace != nil {
+				symFace.dontAnchor(e.Sym())
+				newFaces[faceCount] = symFace
+				faceCount++
+			}
+
+			// 删除多余的边
 			e = e.OrigPrev()
 			m.delete(e.OrigNext())
 		}
 	}
 
+	// 创建新基础边
 	base := New(m.QuadEdges)
 	base.Init()
-
 	base.SetEndPoints(e.Orig(), x)
-
 	Splice(base, e)
 
 	m.startingQuadEdge = base
+	current := base
 	for {
-		base = m.connect(e, base.Sym())
-		e = base.OrigPrev()
+		current = m.connect(e, current.Sym())
+		e = current.OrigPrev()
 		if e.LeftNext() == m.startingQuadEdge {
 			break
 		}
 	}
 
-	if boundaryQuadEdge != nil {
-		m.delete(boundaryQuadEdge)
+	// 删除边界边（如果需要）
+	if boundaryEdge != nil {
+		m.delete(boundaryEdge)
 	}
 
-	if boundaryQuadEdge != nil {
-		base = m.startingQuadEdge.RightPrev()
+	// 设置起始点
+	if boundaryEdge != nil {
+		current = m.startingQuadEdge.RightPrev()
 	} else {
-		base = m.startingQuadEdge.Sym()
+		current = m.startingQuadEdge.Sym()
 	}
 
-	for {
-		if facedex > 0 {
-			facedex--
-			newFaces[facedex].reshape(base)
-		} else {
-			m.makeFace(base)
-		}
+	// 重塑或创建新面
+	for i := 0; i < faceCount; i++ {
+		newFaces[i].reshape(current)
+		current = current.OrigNext()
+	}
 
-		base = base.OrigNext()
-		if base == m.startingQuadEdge.Sym() {
-			break
-		}
+	// 创建剩余的新面
+	for current != m.startingQuadEdge.Sym() {
+		m.makeFace(current)
+		current = current.OrigNext()
 	}
 
 	return m.startingQuadEdge
 }
 
 func (m *DelaunayMesh) optimize(x [2]float64, s *QuadEdge) {
-	startSpoke := s
-	spoke := s
+	queue := []*QuadEdge{} // 使用队列而不是栈
+	visited := make(map[*QuadEdge]bool)
 
+	// 初始时添加所有与点x相连的边
+	start := s
+	current := s
 	for {
-		e := spoke.LeftNext()
-		if m.isInterior(e) && m.shouldSwap(x, e) {
+		// 只添加内部边
+		if m.isInterior(current.LeftNext()) {
+			if !visited[current.LeftNext()] {
+				visited[current.LeftNext()] = true
+				queue = append(queue, current.LeftNext())
+			}
+		}
+
+		current = current.OrigNext()
+		if current == start {
+			break
+		}
+	}
+
+	// 处理队列中的边
+	for len(queue) > 0 {
+		// 从队列前端取出
+		e := queue[0]
+		queue = queue[1:]
+
+		// 确保边仍然存在且是内部边
+		if e == nil || !m.isInterior(e) {
+			continue
+		}
+
+		if m.shouldSwap(x, e) {
+			// 保存受影响的邻居边
+			affectedEdges := []*QuadEdge{
+				e.OrigPrev(),
+				e.Sym().OrigPrev(),
+				e.OrigNext(),
+				e.Sym().OrigNext(),
+			}
+
+			// 执行交换
 			m.swap(e)
-		} else {
-			spoke = spoke.OrigNext()
-			if spoke == startSpoke {
-				break
+
+			// 将受影响的边加入队列
+			for _, edge := range affectedEdges {
+				if edge != nil && !visited[edge] && m.isInterior(edge) {
+					visited[edge] = true
+					queue = append(queue, edge)
+				}
 			}
 		}
 	}
 
-	spoke = startSpoke
-
+	// 扫描所有三角形（可选）
+	current = s
 	for {
-		e := spoke.LeftNext()
-		t := e.LeftFace()
-
-		if t != nil {
+		if t := current.LeftFace(); t != nil && m.scanTriangle != nil {
 			m.scanTriangle(t)
 		}
-
-		spoke = spoke.OrigNext()
-		if spoke == startSpoke {
+		current = current.OrigNext()
+		if current == s {
 			break
+		}
+	}
+}
+
+func (m *DelaunayMesh) Insert(x [2]float64, tri *DelaunayTriangle) { // Capitalize method name
+	var e *QuadEdge
+	if tri != nil {
+		e = m.locate(x, tri.Anchor)
+	} else {
+		e = m.locate(x, m.startingQuadEdge)
+	}
+
+	if isEqual(x, e.Orig()) || isEqual(x, e.Dest()) {
+		m.optimize(x, e)
+	} else {
+		startSpoke := m.spoke(x, e)
+		if startSpoke != nil {
+			m.optimize(x, startSpoke.Sym())
 		}
 	}
 }

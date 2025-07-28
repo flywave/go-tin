@@ -224,8 +224,37 @@ func (m *DelaunayMesh) insert(x [2]float64, tri *DelaunayTriangle) {
 }
 
 func (m *DelaunayMesh) shouldSwap(x [2]float64, e *QuadEdge) bool {
-	t := e.OrigPrev()
-	return InCircumcircle(e.Orig(), t.Dest(), e.Dest(), x)
+	if e == nil || e.OrigPrev() == nil || e.OrigNext() == nil {
+		return false
+	}
+
+	// 获取三角形的三个顶点
+	a := e.Orig()
+	b := e.Dest()
+	c := e.OrigPrev().Orig()
+
+	// 验证三个点是否不同
+	if isEqual(a, b) || isEqual(b, c) || isEqual(a, c) {
+		return false
+	}
+
+	// 确保三角形点按逆时针方向排列
+	if !IsCCW(a, b, c) {
+		// 尝试另一种顶点组合
+		c = e.OrigNext().Dest()
+		if isEqual(a, c) || isEqual(b, c) || !IsCCW(a, b, c) {
+			// 作为最后的手段，使用第三个顶点组合
+			c = e.OrigPrev().Dest()
+			if isEqual(a, c) || isEqual(b, c) {
+				return false
+			}
+			if !IsCCW(a, b, c) {
+				b, c = c, b
+			}
+		}
+	}
+
+	return InCircumcircle(a, b, c, x)
 }
 
 func triArea(a, b, c [2]float64) float64 {
@@ -364,18 +393,22 @@ func (m *DelaunayMesh) spoke(x [2]float64, e *QuadEdge) *QuadEdge {
 }
 
 func (m *DelaunayMesh) optimize(x [2]float64, s *QuadEdge) {
-	queue := []*QuadEdge{} // 使用队列而不是栈
+	queue := []*QuadEdge{}
 	visited := make(map[*QuadEdge]bool)
 
 	// 初始时添加所有与点x相连的边
 	start := s
 	current := s
 	for {
+		if current == nil {
+			break
+		}
+
 		// 只添加内部边
-		if m.isInterior(current.LeftNext()) {
-			if !visited[current.LeftNext()] {
-				visited[current.LeftNext()] = true
-				queue = append(queue, current.LeftNext())
+		if m.isInterior(current) {
+			if !visited[current] {
+				visited[current] = true
+				queue = append(queue, current)
 			}
 		}
 
@@ -387,46 +420,38 @@ func (m *DelaunayMesh) optimize(x [2]float64, s *QuadEdge) {
 
 	// 处理队列中的边
 	for len(queue) > 0 {
-		// 从队列前端取出
 		e := queue[0]
 		queue = queue[1:]
+		visited[e] = false
 
-		// 确保边仍然存在且是内部边
 		if e == nil || !m.isInterior(e) {
 			continue
 		}
 
-		if m.shouldSwap(x, e) {
+		// 获取四边形顶点
+		c := e.LeftPrev().Orig()
+		d := e.Sym().LeftPrev().Orig()
+
+		// 检查是否需要翻转
+		if m.shouldSwap(c, e) || m.shouldSwap(d, e) {
 			// 保存受影响的邻居边
-			affectedEdges := []*QuadEdge{
+			affected := []*QuadEdge{
 				e.OrigPrev(),
-				e.Sym().OrigPrev(),
 				e.OrigNext(),
+				e.Sym().OrigPrev(),
 				e.Sym().OrigNext(),
 			}
 
-			// 执行交换
+			// 执行翻转
 			m.swap(e)
 
 			// 将受影响的边加入队列
-			for _, edge := range affectedEdges {
-				if edge != nil && !visited[edge] && m.isInterior(edge) {
+			for _, edge := range affected {
+				if edge != nil && m.isInterior(edge) && !visited[edge] {
 					visited[edge] = true
 					queue = append(queue, edge)
 				}
 			}
-		}
-	}
-
-	// 扫描所有三角形（可选）
-	current = s
-	for {
-		if t := current.LeftFace(); t != nil && m.scanTriangle != nil {
-			m.scanTriangle(t)
-		}
-		current = current.OrigNext()
-		if current == s {
-			break
 		}
 	}
 }

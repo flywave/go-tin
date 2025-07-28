@@ -35,10 +35,14 @@ func (p *Pool) Len() int {
 }
 
 func (p *Pool) Get() interface{} {
-	if len(p.Values) > 0 {
-		item := p.Values[len(p.Values)-1]
-		p.Values = p.Values[:len(p.Values)-1]
-		return item
+	// 从后往前扫描，跳过nil值
+	for i := len(p.Values) - 1; i >= 0; i-- {
+		item := p.Values[i]
+		if item != nil {
+			// 移除找到的有效元素并返回
+			p.Values = append(p.Values[:i], p.Values[i+1:]...)
+			return item
+		}
 	}
 	return p.New()
 }

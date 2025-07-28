@@ -2,6 +2,7 @@ package tin
 
 import (
 	"math"
+	"sort"
 )
 
 type Mesh struct {
@@ -10,6 +11,13 @@ type Mesh struct {
 	Faces     []Face
 	Triangles []Triangle
 	BBox      [2][3]float64
+}
+
+// 添加初始化方法
+func NewMesh() *Mesh {
+	m := &Mesh{}
+	m.initBBox()
+	return m
 }
 
 // 更新包围盒，添加顶点
@@ -61,7 +69,36 @@ func (m *Mesh) InitFromTriangles(triangles []Triangle) {
 	m.initBBox()
 }
 
+// 添加三角形有效性检查
+func (t Triangle) IsValid() bool {
+	// 检查三个顶点是否不同
+	if t[0].Equal(t[1]) || t[0].Equal(t[2]) || t[1].Equal(t[2]) {
+		return false
+	}
+
+	// 检查面积是否足够大
+	v1 := [3]float64{t[1][0] - t[0][0], t[1][1] - t[0][1], t[1][2] - t[0][2]}
+	v2 := [3]float64{t[2][0] - t[0][0], t[2][1] - t[0][1], t[2][2] - t[0][2]}
+
+	// 计算叉积
+	cross := [3]float64{
+		v1[1]*v2[2] - v1[2]*v2[1],
+		v1[2]*v2[0] - v1[0]*v2[2],
+		v1[0]*v2[1] - v1[1]*v2[0],
+	}
+
+	// 计算面积
+	area := math.Sqrt(cross[0]*cross[0] + cross[1]*cross[1] + cross[2]*cross[2])
+	return area > EPS
+}
+
+// 优化添加三角形方法
 func (m *Mesh) AddTriangle(t Triangle, decompose bool) {
+	// 跳过无效三角形
+	if !t.IsValid() {
+		return
+	}
+
 	m.Triangles = append(m.Triangles, t)
 	if decompose || m.hasDecomposed() {
 		m.decomposeTriangle(t)
@@ -209,9 +246,8 @@ func (m *Mesh) ComposeTriangle(f Face) *Triangle {
 
 func (m *Mesh) GetBbox() BBox3d {
 	var out BBox3d
-	for i := range m.Vertices {
-		out.Add(m.Vertices[i])
-	}
+	out[0], out[1], out[2] = m.BBox[0][1], m.BBox[0][1], m.BBox[0][2]
+	out[3], out[4], out[5] = m.BBox[1][0], m.BBox[1][1], m.BBox[1][2]
 	return out
 }
 
@@ -262,49 +298,34 @@ func faceEdgeCrossesOtherEdge(fi int, faces []Face, vertices []Vertex) bool {
 	return false
 }
 
-func adjacentFind(vi []Vertex, f2 func(Vertex, Vertex) bool) (index int, found bool) {
-	boundOfVi := len(vi) - 1
-	for i := 0; i < boundOfVi; i++ {
-		if f2(vi[i], vi[i+1]) {
-			return i, true
-		}
-	}
-	return -1, false
+// 优化排序函数
+func sortVertices(v []Vertex, less func(Vertex, Vertex) bool) {
+	sort.Slice(v, func(i, j int) bool {
+		return less(v[i], v[j])
+	})
 }
 
-func sort(v []Vertex, cp func(Vertex, Vertex) bool) {
-	size := len(v)
-	if size <= 1 {
-		return
-	}
-	pivot := size / 2
-	x := v[pivot]
-	v[pivot], v[size-1] = v[size-1], v[pivot]
-	j := 0
-	for i := 0; i < size-1; i++ {
-		if cp(v[i], x) {
-			v[i], v[j] = v[j], v[i]
-			j++
-		}
-	}
-	v[j], v[size-1] = v[size-1], v[j]
-	sort(v[:j], cp)
-	sort(v[j+1:], cp)
-}
+func partialSortCopy(v []Vertex, out []Vertex, less func(Vertex, Vertex) bool) {
+	// 先复制数据
+	copy(out, v)
 
-func partialSortCopy(v []Vertex, out []Vertex, cp func(Vertex, Vertex) bool) {
-	in := v
-	inSize := len(in)
-	outSize := len(out)
-	if inSize <= outSize {
-		copy(out, in)
-		sort(out[:inSize], cp)
+	// 对副本进行部分排序
+	if len(out) > len(v) {
+		sortVertices(out[:len(v)], less)
 	} else {
-		space := make([]Vertex, inSize)
-		copy(space, in)
-		sort(space, cp)
-		copy(out, space)
+		sortVertices(out, less)
 	}
+}
+
+// 添加辅助函数用于顶点比较
+func vertexLess(a, b Vertex) bool {
+	if a[0] != b[0] {
+		return a[0] < b[0]
+	}
+	if a[1] != b[1] {
+		return a[1] < b[1]
+	}
+	return a[2] < b[2]
 }
 
 func (m *Mesh) CheckTin() bool {
@@ -346,11 +367,13 @@ func (m *Mesh) CheckTin() bool {
 
 	{
 		verticesSorted := make([]Vertex, len(m.Vertices))
+		partialSortCopy(m.Vertices, verticesSorted, vertexLess)
 
-		partialSortCopy(m.Vertices, verticesSorted, VertexEqual)
-		_, ok := adjacentFind(verticesSorted, VertexEqual)
-		if ok {
-			return false
+		// 使用更高效的检查重复顶点方式
+		for i := 0; i < len(verticesSorted)-1; i++ {
+			if verticesSorted[i].Equal(verticesSorted[i+1]) {
+				return false
+			}
 		}
 	}
 

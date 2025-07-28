@@ -606,3 +606,15 @@ func (r *RasterInt) GetRow(row int) []int32 {
 	}
 	return nil
 }
+
+// 检查是否为 NaN 的辅助函数
+func IsNaN(v interface{}) bool {
+	switch v := v.(type) {
+	case float32:
+		return math.IsNaN(float64(v))
+	case float64:
+		return math.IsNaN(v)
+	default:
+		return false
+	}
+}

@@ -100,7 +100,7 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 		step := z.MaxLevel - level
 		stepSize := z.stepPowers[step]
 		co := z.stepPowers[step-1]
-		d := z.stepPowers[step-2]
+		d := z.stepPowers[max(0, step-2)] // Add bounds check here
 
 		for y := 0; y < h; y += stepSize {
 			for x := 0; x < w; x += stepSize {

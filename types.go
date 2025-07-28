@@ -17,6 +17,16 @@ func VertexEqual(v, o Vertex) bool {
 	return v.Equal(o)
 }
 
+// 优化 adjacentFind 函数
+func AdjacentFind(vi []Vertex, eq func(Vertex, Vertex) bool) (index int, found bool) {
+	for i := 0; i < len(vi)-1; i++ {
+		if eq(vi[i], vi[i+1]) {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 type Triangle [3]Vertex
 
 func (l Triangle) Equal(r Triangle) bool {
@@ -257,6 +267,14 @@ func NewBBox3d() *BBox3d {
 
 func (b *BBox3d) To2d() BBox2d {
 	return BBox2d{b[0], b[1], b[3], b[4]}
+}
+
+func (b *BBox3d) Min() [3]float64 {
+	return [3]float64{b[0], b[1], b[2]}
+}
+
+func (b *BBox3d) Max() [3]float64 {
+	return [3]float64{b[3], b[4], b[5]}
 }
 
 func (b *BBox3d) add(p []float64) {

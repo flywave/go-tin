@@ -154,6 +154,7 @@ func TestDelaunayMesh(t *testing.T) {
 			// 检查所有点是否在外接圆外
 			for point := range allPoints {
 				// 跳过三角形本身的点
+				// 跳过三角形本身的点
 				if isEqual(point, p1) || isEqual(point, p2) || isEqual(point, p3) {
 					continue
 				}

@@ -79,10 +79,9 @@ func (cl *CandidateList) Empty() bool { return cl.Candidates.Len() == 0 }
 
 func (cl *CandidateList) GrabGreatest() *Candidate {
 	if cl.Empty() {
-		return &Candidate{}
+		return nil // Return nil instead of empty Candidate
 	}
-	candidate := heap.Pop(&cl.Candidates)
-	return candidate.(*Candidate)
+	return heap.Pop(&cl.Candidates).(*Candidate)
 }
 
 func orderTrianglePoints(p *[3][2]float64) {

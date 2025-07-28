@@ -43,19 +43,20 @@ func (s *OBJTileExporter) RelativeTilePath(zoom, x, y int) string {
 var DefaultTileExporter TileExporter = &OBJTileExporter{}
 
 type TinTilerConfig struct {
-	OutputDir   string
-	TileGrid    *geo.TileGrid
-	MinZoom     int
-	MaxZoom     int
-	Concurrency int
-	MaxError    float64
-	Provider    DemProvider // 替换原来的DEMLoader
-	Exporter    TileExporter
-	Progress    Progress
-	Coverage    geo.Coverage
-	AutoZoom    bool
-	Datum       geoid.VerticalDatum
-	Offset      float64
+	OutputDir     string
+	TileGrid      *geo.TileGrid
+	MinZoom       int
+	MaxZoom       int
+	SpecificZooms []int
+	Concurrency   int
+	MaxError      float64
+	Provider      DemProvider // 替换原来的DEMLoader
+	Exporter      TileExporter
+	Progress      Progress
+	Coverage      geo.Coverage
+	AutoZoom      bool
+	Datum         geoid.VerticalDatum
+	Offset        float64
 }
 
 type TinTiler struct {
@@ -191,10 +192,11 @@ func (t *TinTiler) Stop() {
 }
 
 func (t *TinTiler) calculateTotalTasks() {
+	zooms := t.getZoomLevels()
 	var total int64
 	bbox := t.coverage
-	for z := t.config.MinZoom; z <= t.config.MaxZoom; z++ {
-		minX, maxX, minY, maxY := t.config.TileGrid.GetAffectedTilesRange(*bbox, z)
+	for _, zoom := range zooms {
+		minX, maxX, minY, maxY := t.config.TileGrid.GetAffectedTilesRange(*bbox, zoom)
 		total += int64((maxX - minX + 1) * (maxY - minY + 1))
 	}
 	atomic.StoreInt64(&t.totalTasks, total)
@@ -227,29 +229,50 @@ func (t *TinTiler) worker(ctx context.Context) {
 func (t *TinTiler) generateTasks() {
 	defer close(t.taskQueue)
 
-	for z := t.config.MinZoom; z <= t.config.MaxZoom; z++ {
+	zooms := t.getZoomLevels()
+	for _, zoom := range zooms {
 		bbox := vec2d.Rect{}
 		if t.coverage != nil {
 			bbox = *t.coverage
 		}
 
-		_, _, tileIter, _ := t.config.TileGrid.GetAffectedLevelTiles(bbox, z)
+		_, _, tileIter, err := t.config.TileGrid.GetAffectedLevelTiles(bbox, zoom)
+		if err != nil {
+			t.reportError(fmt.Errorf("zoom %d: %w", zoom, err))
+			continue
+		}
 
+	tileLoop:
 		for {
-			x, y, z, done := tileIter.Next()
-			if done {
-				break
-			}
-
-			task := &tileTask{zoom: z, x: x, y: y}
-
 			select {
 			case <-t.ctx.Done():
-				return
-			case t.taskQueue <- task:
+				break tileLoop
+			default:
+				x, y, z, done := tileIter.Next()
+
+				select {
+				case <-t.ctx.Done():
+					break tileLoop
+				case t.taskQueue <- &tileTask{zoom: z, x: x, y: y}:
+				}
+				if done {
+					break tileLoop
+				}
 			}
 		}
 	}
+}
+
+func (t *TinTiler) getZoomLevels() []int {
+	if len(t.config.SpecificZooms) > 0 {
+		return t.config.SpecificZooms
+	}
+
+	zooms := make([]int, 0, t.config.MaxZoom-t.config.MinZoom+1)
+	for z := t.config.MinZoom; z <= t.config.MaxZoom; z++ {
+		zooms = append(zooms, z)
+	}
+	return zooms
 }
 
 func (t *TinTiler) processTile(task *tileTask) {

@@ -1,7 +1,7 @@
 package tin
 
-func GenerateTinMesh(raster *RasterDouble, maxError float64) *Mesh {
-	g := NewZemlyaMesh()
+func GenerateTinMesh(raster *RasterDouble, maxError float64, config *GeoConfig) *Mesh {
+	g := NewZemlyaMesh(config)
 	g.LoadRaster(raster)
 	g.GreedyInsert(maxError)
 	return g.ToMesh()

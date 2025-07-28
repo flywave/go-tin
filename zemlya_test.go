@@ -34,7 +34,7 @@ func TestZemlyaMeshIntegration(t *testing.T) {
 	testRaster := createTestRaster()
 
 	// ========== 执行阶段 ==========
-	zemlya := NewZemlyaMesh()
+	zemlya := NewZemlyaMesh(nil)
 	zemlya.Raster = testRaster
 	maxError := 0.5 // 最大允许误差
 	zemlya.GreedyInsert(maxError)
@@ -124,7 +124,7 @@ func TestZemlyaMeshIntegration(t *testing.T) {
 	// 设置一个无效点
 	testRaster.SetValue(0, 1, math.NaN())
 	// 重新执行算法
-	zemlya = NewZemlyaMesh()
+	zemlya = NewZemlyaMesh(nil)
 	zemlya.Raster = testRaster
 	zemlya.GreedyInsert(maxError)
 

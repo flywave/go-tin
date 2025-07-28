@@ -212,6 +212,10 @@ func NewRasterWithData(row, column int, data interface{}) *Raster {
 	return &r
 }
 
+func (r *Raster) CellSize() float64 {
+	return r.cellsize
+}
+
 func (r *Raster) SetXYPos(x, y, res float64) {
 	r.setCellSize(res)
 	r.setPosX(x)
@@ -460,6 +464,13 @@ func NewRasterDoubleWithData(row, column int, data []float64) *RasterDouble {
 	return &r
 }
 
+func (r *RasterDouble) DataSlice() []float64 {
+	if data, ok := r.Data.([]float64); ok {
+		return data
+	}
+	return nil
+}
+
 func (r *RasterDouble) Fill(data float64) {
 	if t, ok := r.Data.([]float64); ok {
 		for i := range t {
@@ -518,6 +529,13 @@ func NewRasterCharWithData(row, column int, data []int8) *RasterChar {
 	return &r
 }
 
+func (r *RasterChar) DataSlice() []int8 {
+	if data, ok := r.Data.([]int8); ok {
+		return data
+	}
+	return nil
+}
+
 func (r *RasterChar) Fill(data int8) {
 	if t, ok := r.Data.([]int8); ok {
 		for i := range t {
@@ -574,6 +592,13 @@ func NewRasterIntWithData(row, column int, data []int32) *RasterInt {
 	r.NoData = math.NaN()
 
 	return &r
+}
+
+func (r *RasterInt) DataSlice() []int32 {
+	if data, ok := r.Data.([]int32); ok {
+		return data
+	}
+	return nil
 }
 
 func (r *RasterInt) Fill(data int32) {

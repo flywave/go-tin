@@ -1,7 +1,12 @@
 package tin
 
 import (
+	"fmt"
 	"math"
+
+	"github.com/flywave/go-geo"
+	"github.com/flywave/go-geoid"
+	vec2d "github.com/flywave/go3d/float64/vec2"
 )
 
 // 预定义常量避免魔法数
@@ -25,6 +30,12 @@ func averageOf(noDataValue float64, values ...float64) float64 {
 	return sum / float64(count)
 }
 
+type GeoConfig struct {
+	SrcProj geo.Proj
+	Datum   geoid.VerticalDatum
+	Offset  float64
+}
+
 // https://isprs-archives.copernicus.org/articles/XLI-B2/459/2016/isprs-archives-XLI-B2-459-2016.pdf
 type ZemlyaMesh struct {
 	RasterMesh
@@ -41,12 +52,26 @@ type ZemlyaMesh struct {
 	stepPowers   []int // 缓存步长幂值
 }
 
-func NewZemlyaMesh() *ZemlyaMesh {
-	mesh := &ZemlyaMesh{}
+func NewZemlyaMesh(config *GeoConfig) *ZemlyaMesh {
+	mesh := &ZemlyaMesh{
+		RasterMesh: RasterMesh{
+			SrcProj: config.SrcProj,
+			Datum:   config.Datum,
+			Offset:  config.Offset,
+		},
+	}
 	mesh.QuadEdges = NewPool(func() interface{} { return &QuadEdge{} })
 	mesh.Triangles = NewPool(func() interface{} { return &DelaunayTriangle{} })
 	mesh.scanTriangle = mesh.ScanTriangle
 	return mesh
+}
+
+func (z *ZemlyaMesh) LoadRaster(raster *RasterDouble) error {
+	if raster == nil {
+		return fmt.Errorf("nil raster")
+	}
+	z.Raster = raster
+	return nil
 }
 
 func (z *ZemlyaMesh) scanTriangleLine(plane Plane, y int, x1, x2 float64, candidate *Candidate, noDataValue float64) {
@@ -67,7 +92,7 @@ func (z *ZemlyaMesh) scanTriangleLine(plane Plane, y int, x1, x2 float64, candid
 
 		var zv float64
 		if z.CurrentLevel == z.MaxLevel {
-			zv = z.Raster.Value(y, x)
+			zv = z.getElevation(y, x)
 		} else {
 			zv = z.Insert.Value(y, x)
 		}
@@ -114,7 +139,7 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 
 				for i, p := range points {
 					if p[0] >= 0 && p[0] < h && p[1] >= 0 && p[1] < w {
-						values[i] = z.Raster.Value(p[0], p[1])
+						values[i] = z.getElevation(p[0], p[1])
 					} else {
 						values[i] = math.NaN()
 					}
@@ -144,10 +169,10 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 	// 初始化结果栅格
 	z.Result = NewRasterDouble(h, w, noDataValue)
 	z.Result.Hemlines = z.Raster.Hemlines
-	z.Result.SetValue(0, 0, z.Raster.Value(0, 0))
-	z.Result.SetValue(h-1, 0, z.Raster.Value(h-1, 0))
-	z.Result.SetValue(h-1, w-1, z.Raster.Value(h-1, w-1))
-	z.Result.SetValue(0, w-1, z.Raster.Value(0, w-1))
+	z.Result.SetValue(0, 0, z.getElevation(0, 0))
+	z.Result.SetValue(h-1, 0, z.getElevation(h-1, 0))
+	z.Result.SetValue(h-1, w-1, z.getElevation(h-1, w-1))
+	z.Result.SetValue(0, w-1, z.getElevation(0, w-1))
 
 	z.Insert = NewRasterDouble(h, w, noDataValue)
 	z.Used = NewRasterChar(h, w, 0)
@@ -174,7 +199,7 @@ func (z *ZemlyaMesh) GreedyInsert(maxError float64) {
 					}
 
 					if level >= 5 && level <= z.MaxLevel-1 {
-						z.Insert.SetValue(y, x, z.Raster.Value(y, x))
+						z.Insert.SetValue(y, x, z.getElevation(y, x))
 					} else if step >= 3 {
 						var sampleValues [4]float64
 						samplePoints := [4][2]int{
@@ -278,7 +303,12 @@ func (z *ZemlyaMesh) ScanTriangle(t *DelaunayTriangle) {
 func (z *ZemlyaMesh) ToMesh() *Mesh {
 	w, h := z.Raster.Cols(), z.Raster.Rows()
 	noDataValue := z.Raster.NoData.(float64)
-	mesh := &Mesh{}
+	mesh := &Mesh{
+		GeoRef: geo.NewGeoReference(vec2d.Rect{
+			Min: vec2d.T{z.Raster.Bounds[0], z.Raster.Bounds[1]},
+			Max: vec2d.T{z.Raster.Bounds[2], z.Raster.Bounds[3]},
+		}, z.SrcProj),
+	}
 	vertexID := NewRasterInt(h, w, -1)
 	vertices := make([]Vertex, 0, w*h/2)
 	normals := make([]Normal, 0, w*h/2)
@@ -286,7 +316,8 @@ func (z *ZemlyaMesh) ToMesh() *Mesh {
 	// 收集有效顶点
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			if zv := z.Result.Value(y, x); !isNoData(zv, noDataValue) {
+			zv := z.getElevation(y, x)
+			if !isNoData(zv, noDataValue) {
 				v := Vertex{z.Raster.ColToX(x), z.Raster.RowToY(y), zv}
 				if z.Raster.transform != nil {
 					v = z.Raster.transform(&v)

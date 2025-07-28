@@ -1,11 +1,16 @@
 package tin
 
 import (
+	"fmt"
 	"math"
+	"os"
 	"sort"
+
+	"github.com/flywave/go-geo"
 )
 
 type Mesh struct {
+	GeoRef    *geo.GeoReference
 	Vertices  []Vertex
 	Normals   []Normal
 	Faces     []Face
@@ -14,8 +19,10 @@ type Mesh struct {
 }
 
 // 添加初始化方法
-func NewMesh() *Mesh {
-	m := &Mesh{}
+func NewMesh(geoRef *geo.GeoReference) *Mesh {
+	m := &Mesh{
+		GeoRef: geoRef,
+	}
 	m.initBBox()
 	return m
 }
@@ -384,4 +391,56 @@ func (m *Mesh) CheckTin() bool {
 	}
 
 	return true
+}
+
+// 新增OBJ导出方法
+func (m *Mesh) ExportOBJ(filename string, reproj bool) error {
+	srcProj := geo.NewProj(4326) // 当前坐标系
+	dstProj := m.GeoRef.GetSrs() // 目标坐标系（原始坐标系）
+	convert := func(x, y float64) (float64, float64) {
+		pt, _ := transformPoint(srcProj, dstProj, x, y)
+		return pt[0], pt[1]
+	}
+	// 创建输出文件
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %v", err)
+	}
+	defer file.Close()
+
+	// 写入顶点数据
+	file.WriteString("# Vertices\n")
+	for _, v := range m.Vertices {
+		if reproj {
+			x, y := convert(v[0], v[1])
+			file.WriteString(fmt.Sprintf("v %.6f %.6f %.6f\n", x, y, v[2]))
+		} else {
+			file.WriteString(fmt.Sprintf("v %.6f %.6f %.6f\n", v[0], v[1], v[2]))
+		}
+	}
+
+	// 写入法线数据（如果存在）
+	if len(m.Normals) > 0 {
+		file.WriteString("\n# Normals\n")
+		for _, n := range m.Normals {
+			file.WriteString(fmt.Sprintf("vn %.6f %.6f %.6f\n", n[0], n[1], n[2]))
+		}
+	}
+
+	// 写入面数据
+	file.WriteString("\n# Faces\n")
+	for _, f := range m.Faces {
+		if len(m.Normals) > 0 {
+			// 顶点索引和法线索引都从1开始
+			file.WriteString(fmt.Sprintf("f %d//%d %d//%d %d//%d\n",
+				f[0]+1, f[0]+1,
+				f[1]+1, f[1]+1,
+				f[2]+1, f[2]+1))
+		} else {
+			file.WriteString(fmt.Sprintf("f %d %d %d\n",
+				f[0]+1, f[1]+1, f[2]+1))
+		}
+	}
+
+	return nil
 }

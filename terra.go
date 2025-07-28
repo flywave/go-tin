@@ -3,6 +3,13 @@ package tin
 import (
 	"container/heap"
 	"math"
+
+	"github.com/flywave/go-geo"
+	"github.com/flywave/go-geoid"
+)
+
+var (
+	EPSG4326 = geo.NewProj(4326)
 )
 
 // PQ 优先级队列实现（最大堆）
@@ -114,7 +121,10 @@ func computePlane(t *DelaunayTriangle, raster *RasterDouble) Plane {
 
 type RasterMesh struct {
 	DelaunayMesh
-	Raster *RasterDouble
+	Raster  *RasterDouble
+	SrcProj geo.Proj            // 原始坐标系
+	Datum   geoid.VerticalDatum // 高程基准
+	Offset  float64             // 高程偏移
 }
 
 func (r *RasterMesh) LoadRaster(raster *RasterDouble) {
@@ -139,4 +149,21 @@ func (r *RasterMesh) repairPoint(px, py float64) {
 	} else {
 		r.Raster.SetValue(y, x, z)
 	}
+}
+
+func (r *RasterMesh) getElevation(y, x int) float64 {
+	currentVal := r.Raster.Value(y, x)
+	if r.SrcProj == nil {
+		return currentVal
+	}
+	xCoord := r.Raster.ColToX(x)
+	yCoord := r.Raster.RowToY(y)
+	pt, _ := transformPoint(r.SrcProj, EPSG4326, xCoord, yCoord)
+
+	// 高程基准转换
+	if r.Datum == geoid.HAE {
+		return currentVal + r.Offset
+	}
+	g := geoid.NewGeoid(r.Datum, false)
+	return g.ConvertHeight(pt[1], pt[0], currentVal, geoid.GEOIDTOELLIPSOID)
 }

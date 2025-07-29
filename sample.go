@@ -237,9 +237,9 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 
 	origin := f.origin
 	// 获取分离的XY分辨率
-	resX, resY := origin.Resolution()
-	if resX <= 0 || resY <= 0 {
-		return nil, fmt.Errorf("invalid resolution: X=%.6f, Y=%.6f", resX, resY)
+	cellsize := origin.CellSize()
+	if cellsize <= 0 {
+		return nil, fmt.Errorf("invalid cellsize: %.6f", cellsize)
 	}
 
 	// 原始栅格地理范围
@@ -255,12 +255,12 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 	}
 
 	// 计算列索引 (X方向)
-	startCol := math.Floor((intersect.Min[0] - originBBox.Min[0]) / resX)
-	endCol := math.Ceil((intersect.Max[0] - originBBox.Min[0]) / resX)
+	startCol := math.Floor((intersect.Min[0] - originBBox.Min[0]) / cellsize)
+	endCol := math.Ceil((intersect.Max[0] - originBBox.Min[0]) / cellsize)
 
 	// 计算行索引 (Y方向) - 注意Y轴从顶部开始
-	startRow := math.Floor((originBBox.Max[1] - intersect.Max[1]) / math.Abs(resY))
-	endRow := math.Ceil((originBBox.Max[1] - intersect.Min[1]) / math.Abs(resY))
+	startRow := math.Floor((originBBox.Max[1] - intersect.Max[1]) / math.Abs(cellsize))
+	endRow := math.Ceil((originBBox.Max[1] - intersect.Min[1]) / math.Abs(cellsize))
 
 	// 添加1个像元重叠
 	overlap := 1.0
@@ -291,15 +291,15 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 	}
 
 	// 精确计算地理边界
-	exactMinX := originBBox.Min[0] + float64(startColInt)*resX
-	exactMaxX := originBBox.Min[0] + float64(endColInt)*resX
-	exactMaxY := originBBox.Max[1] - float64(startRowInt)*math.Abs(resY)
-	exactMinY := originBBox.Max[1] - float64(endRowInt)*math.Abs(resY)
+	exactMinX := originBBox.Min[0] + float64(startColInt)*cellsize
+	exactMaxX := originBBox.Min[0] + float64(endColInt)*cellsize
+	exactMaxY := originBBox.Max[1] - float64(startRowInt)*math.Abs(cellsize)
+	exactMinY := originBBox.Max[1] - float64(endRowInt)*math.Abs(cellsize)
 
 	// === 新增：边界对齐处理 ===
 	// 计算需要扩展的像元数（确保覆盖原始bbox）
-	expandCols := math.Ceil((bbox.Max[0] - exactMaxX) / resX)
-	expandRows := math.Ceil((exactMinY - bbox.Min[1]) / math.Abs(resY))
+	expandCols := math.Ceil((bbox.Max[0] - exactMaxX) / cellsize)
+	expandRows := math.Ceil((exactMinY - bbox.Min[1]) / math.Abs(cellsize))
 
 	if expandCols > 0 || expandRows > 0 {
 		// 扩展列索引范围
@@ -308,8 +308,8 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 		endRowInt = min(origin.Rows(), endRowInt+int(expandRows)+1)
 
 		// 重新计算精确边界
-		exactMaxX = originBBox.Min[0] + float64(endColInt)*resX
-		exactMinY = originBBox.Max[1] - float64(endRowInt)*math.Abs(resY)
+		exactMaxX = originBBox.Min[0] + float64(endColInt)*cellsize
+		exactMinY = originBBox.Max[1] - float64(endRowInt)*math.Abs(cellsize)
 
 		// 更新子网格尺寸
 		subCols = endColInt - startColInt
@@ -338,7 +338,7 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 	subRaster.SetXYPos(
 		exactMinX, // 左下角X
 		exactMinY, // 左下角Y (修复坐标计算)
-		resX,      // 分离的分辨率
+		cellsize,  // 分离的分辨率
 	)
 	subRaster.NoData = origin.NoData
 	subRaster.Bounds = [4]float64{exactMinX, exactMaxX, exactMinY, exactMaxY}

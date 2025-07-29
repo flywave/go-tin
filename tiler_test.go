@@ -10,7 +10,7 @@ import (
 // 新增测试用例：验证完整瓦片生成流程
 func TestTINTiler(t *testing.T) {
 	testBBox := GenerateSampleTileBBox(16)
-	dem := CreateSampleDEM(testBBox, 10.0, 100.0)
+	dem := CreateSampleDEM(testBBox, 16, 180.0)
 	coverage := geo.NewBBoxCoverage(testBBox, geo.NewProj(3857), true)
 	tileGrid := geo.NewMercTileGrid()
 
@@ -21,7 +21,7 @@ func TestTINTiler(t *testing.T) {
 		MinZoom:     15,
 		MaxZoom:     18,
 		Concurrency: 2,
-		MaxError:    100.0,
+		MaxError:    10,
 		AutoZoom:    true,
 		Provider:    NewRasterAdapter(tileGrid, coverage, dem),
 		Exporter:    &OBJTileExporter{},

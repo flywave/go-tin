@@ -53,7 +53,10 @@ func transformPoint(srcProj, dstProj geo.Proj, x, y float64) (vec2d.T, error) {
 }
 
 // 创建虚拟DEM
-func CreateSampleDEM(bbox vec2d.Rect, spacing float64, maxElev float64) *RasterDouble {
+func CreateSampleDEM(bbox vec2d.Rect, zoom int, maxElev float64) *RasterDouble {
+	// 根据缩放级别动态设置分辨率
+	spacing := math.Pow(2, 17-float64(zoom)) // 调整指数为17，强制16级2m、17级1m分辨率，修复层级对应问题
+
 	cols := int(bbox.Width()/spacing) + 1
 	rows := int(bbox.Height()/spacing) + 1
 
@@ -64,9 +67,8 @@ func CreateSampleDEM(bbox vec2d.Rect, spacing float64, maxElev float64) *RasterD
 			y := bbox.Min[1] + float64(i)*spacing
 			// 生成波浪地形
 			// 使用分形噪声生成更真实地形
-			height := maxElev * (0.5*noise2D(x/500, y/500) +
-				0.3*noise2D(x/100, y/100) +
-				0.2*noise2D(x/20, y/20))
+			height := maxElev * (0.8*noise2D(x/1200, y/1200) +
+				0.2*noise2D(x/400, y/400)) // 移除最高频噪声项，增大低频特征尺度至1200/400，进一步消除搓板效应
 			data[i*cols+j] = height
 		}
 	}
@@ -74,7 +76,7 @@ func CreateSampleDEM(bbox vec2d.Rect, spacing float64, maxElev float64) *RasterD
 	raster := NewRasterDoubleWithData(rows, cols, data)
 	raster.SetXYPos(
 		bbox.Min[0], // 左下角X坐标
-		bbox.Max[1], // 左上角Y坐标
+		bbox.Min[1], // 左下角Y坐标（修复posy超过maxY的误差）
 		spacing,
 	)
 
@@ -88,12 +90,10 @@ func CreateSampleDEM(bbox vec2d.Rect, spacing float64, maxElev float64) *RasterD
 		// 执行坐标转换
 		pt := srcProj.TransformTo(dstProj, []vec2d.T{{v[0], v[1]}})
 
-		// 高程基准转换（示例：HAE转EGM96）
-		g := geoid.NewGeoid(geoid.EGM96, false)
 		return Vertex{
 			pt[0][0],
 			pt[0][1],
-			g.ConvertHeight(pt[0][1], pt[0][0], v[2], geoid.GEOIDTOELLIPSOID),
+			v[2],
 		}
 	})
 
@@ -101,10 +101,9 @@ func CreateSampleDEM(bbox vec2d.Rect, spacing float64, maxElev float64) *RasterD
 	return raster
 }
 
-func GenerateSampleMesh(bbox vec2d.Rect, srsCode int) (*Mesh, error) {
+func GenerateSampleMesh(bbox vec2d.Rect, srsCode int, zoom int) (*Mesh, error) {
 	const (
 		maxSurfaceElev = 50.0
-		spacing        = 10.0 // 采样间距
 	)
 
 	// 1. 创建地理参考系
@@ -116,7 +115,7 @@ func GenerateSampleMesh(bbox vec2d.Rect, srsCode int) (*Mesh, error) {
 	}
 
 	// 2. 创建虚拟DEM并验证
-	dem := CreateSampleDEM(bbox, spacing, maxSurfaceElev)
+	dem := CreateSampleDEM(bbox, zoom, maxSurfaceElev)
 	if dem == nil || dem.Cols() == 0 || dem.Rows() == 0 {
 		return nil, fmt.Errorf("DEM创建失败")
 	}
@@ -211,18 +210,16 @@ func NewRasterAdapter(tileGrid *geo.TileGrid, coverage geo.Coverage, origin *Ras
 		origin:       origin,
 		tileGrid:     tileGrid,
 		fullCoverage: coverage,
-		originSR:     tileGrid.Srs, // 克隆以避免外部修改
+		originSR:     tileGrid.Srs, // 深度克隆避免外部修改
 	}
 }
 
 func intersectRect(r *vec2d.Rect, other *vec2d.Rect) *vec2d.Rect {
-	// 计算最大最小值
 	minX := math.Max(r.Min[0], other.Min[0])
 	minY := math.Max(r.Min[1], other.Min[1])
 	maxX := math.Min(r.Max[0], other.Max[0])
 	maxY := math.Min(r.Max[1], other.Max[1])
 
-	// 检查是否有有效交集
 	if minX >= maxX || minY >= maxY {
 		return nil
 	}
@@ -234,107 +231,144 @@ func intersectRect(r *vec2d.Rect, other *vec2d.Rect) *vec2d.Rect {
 }
 
 func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, error) {
-	// 验证输入
-	if f.origin == nil {
-		return nil, fmt.Errorf("origin raster is nil")
-	}
-	if f.origin.Data == nil {
-		return nil, fmt.Errorf("origin raster data is nil")
+	if f.origin == nil || f.origin.Data == nil {
+		return nil, fmt.Errorf("origin raster is invalid")
 	}
 
 	origin := f.origin
-	cellSize := origin.CellSize()
-	if cellSize <= 0 {
-		return nil, fmt.Errorf("invalid cell size: %f", cellSize)
+	// 获取分离的XY分辨率
+	resX, resY := origin.Resolution()
+	if resX <= 0 || resY <= 0 {
+		return nil, fmt.Errorf("invalid resolution: X=%.6f, Y=%.6f", resX, resY)
 	}
 
-	// 计算原始栅格的实际地理范围
+	// 原始栅格地理范围
 	originBBox := vec2d.Rect{
-		Min: vec2d.T{f.origin.Bounds[0], f.origin.Bounds[2]}, // 原始最小X,Y
-		Max: vec2d.T{f.origin.Bounds[1], f.origin.Bounds[3]}, // 原始最大X,Y
+		Min: vec2d.T{origin.Bounds[0], origin.Bounds[2]},
+		Max: vec2d.T{origin.Bounds[1], origin.Bounds[3]},
 	}
-	// 计算请求范围与原始栅格的实际交集
+
+	// 计算有效交集
 	intersect := intersectRect(&bbox, &originBBox)
 	if intersect == nil {
-		return nil, fmt.Errorf("bbox %v does not intersect origin raster extent %v", bbox, originBBox)
+		return nil, fmt.Errorf("no intersection with origin raster")
 	}
 
-	// 修正行列号计算（使用浮点数精确计算）
-	startCol := int(math.Floor((intersect.Min[0] - originBBox.Min[0]) / cellSize))
-	endCol := int(math.Ceil((intersect.Max[0] - originBBox.Min[0]) / cellSize))
+	// 计算列索引 (X方向)
+	startCol := math.Floor((intersect.Min[0] - originBBox.Min[0]) / resX)
+	endCol := math.Ceil((intersect.Max[0] - originBBox.Min[0]) / resX)
 
-	// 修正Y轴方向计算（考虑栅格存储顺序）
-	startRow := int(math.Floor((originBBox.Max[1] - intersect.Max[1]) / cellSize))
-	endRow := int(math.Ceil((originBBox.Max[1] - intersect.Min[1]) / cellSize))
+	// 计算行索引 (Y方向) - 注意Y轴从顶部开始
+	startRow := math.Floor((originBBox.Max[1] - intersect.Max[1]) / math.Abs(resY))
+	endRow := math.Ceil((originBBox.Max[1] - intersect.Min[1]) / math.Abs(resY))
 
-	// 边界检查与修正
+	// 添加1个像元重叠
+	overlap := 1.0
+	startCol = math.Max(0, startCol-overlap)
+	endCol = math.Min(float64(origin.Cols()), endCol+overlap)
+	startRow = math.Max(0, startRow-overlap)
+	endRow = math.Min(float64(origin.Rows()), endRow+overlap)
+
+	// 转换为整数索引 (扩大范围确保覆盖)
+	startColInt := int(math.Floor(startCol))
+	endColInt := int(math.Ceil(endCol))
+	startRowInt := int(math.Floor(startRow))
+	endRowInt := int(math.Ceil(endRow))
+
+	// 边界检查
 	cols := origin.Cols()
 	rows := origin.Rows()
+	startColInt = max(0, startColInt)
+	endColInt = min(cols, endColInt)
+	startRowInt = max(0, startRowInt)
+	endRowInt = min(rows, endRowInt)
 
-	// 边界保护（确保至少包含一个像元）
-	startCol = clamp(startCol, 0, cols-1)
-	endCol = clamp(endCol, 1, cols)
-	startRow = clamp(startRow, 0, rows-1)
-	endRow = clamp(endRow, 1, rows)
-
-	// 计算实际行列数
-	subCols := endCol - startCol
-	subRows := endRow - startRow
+	// 计算实际尺寸
+	subCols := endColInt - startColInt
+	subRows := endRowInt - startRowInt
 	if subCols <= 0 || subRows <= 0 {
-		return nil, fmt.Errorf("无效的子栅格尺寸：%dx%d", subCols, subRows)
+		return nil, fmt.Errorf("invalid subgrid size: %dx%d", subCols, subRows)
 	}
 
-	// 计算精确地理边界
-	exactMinX := originBBox.Min[0] + float64(startCol)*cellSize
-	exactMaxX := exactMinX + float64(subCols)*cellSize
-	exactMaxY := originBBox.Max[1] - float64(startRow)*cellSize
-	exactMinY := exactMaxY - float64(subRows)*cellSize
+	// 精确计算地理边界
+	exactMinX := originBBox.Min[0] + float64(startColInt)*resX
+	exactMaxX := originBBox.Min[0] + float64(endColInt)*resX
+	exactMaxY := originBBox.Max[1] - float64(startRowInt)*math.Abs(resY)
+	exactMinY := originBBox.Max[1] - float64(endRowInt)*math.Abs(resY)
 
-	// 一次性复制所有数据（更高效）
-	dataSlice := f.origin.DataSlice()
-	newData := make([]float64, 0, subRows*subCols)
-	for r := startRow; r < endRow; r++ {
-		startIdx := r*cols + startCol
-		endIdx := startIdx + subCols
-		newData = append(newData, dataSlice[startIdx:endIdx]...)
+	// === 新增：边界对齐处理 ===
+	// 计算需要扩展的像元数（确保覆盖原始bbox）
+	expandCols := math.Ceil((bbox.Max[0] - exactMaxX) / resX)
+	expandRows := math.Ceil((exactMinY - bbox.Min[1]) / math.Abs(resY))
+
+	if expandCols > 0 || expandRows > 0 {
+		// 扩展列索引范围
+		endColInt = min(origin.Cols(), endColInt+int(expandCols)+1)
+		// 扩展行索引范围
+		endRowInt = min(origin.Rows(), endRowInt+int(expandRows)+1)
+
+		// 重新计算精确边界
+		exactMaxX = originBBox.Min[0] + float64(endColInt)*resX
+		exactMinY = originBBox.Max[1] - float64(endRowInt)*math.Abs(resY)
+
+		// 更新子网格尺寸
+		subCols = endColInt - startColInt
+		subRows = endRowInt - startRowInt
+		if subCols <= 0 || subRows <= 0 {
+			return nil, fmt.Errorf("expanded subgrid size invalid: %dx%d", subCols, subRows)
+		}
 	}
 
-	// 创建新栅格并设置地理参考
+	// 高效数据复制
+	totalSize := subRows * subCols
+	newData := make([]float64, totalSize)
+	dataSlice := origin.DataSlice()
+
+	for r := 0; r < subRows; r++ {
+		srcRow := startRowInt + r
+		srcStart := srcRow*cols + startColInt
+		srcEnd := srcStart + subCols
+		dstStart := r * subCols
+
+		copy(newData[dstStart:dstStart+subCols], dataSlice[srcStart:srcEnd])
+	}
+
+	// 创建子栅格
 	subRaster := NewRasterDoubleWithData(subRows, subCols, newData)
-
-	// 设置精确的地理位置（包含偏移量）
 	subRaster.SetXYPos(
 		exactMinX, // 左下角X
-		exactMaxY, // 左上角Y
-		cellSize,
+		exactMinY, // 左下角Y (修复坐标计算)
+		resX,      // 分离的分辨率
 	)
-	subRaster.SetTransform(origin.transform)
 	subRaster.NoData = origin.NoData
 	subRaster.Bounds = [4]float64{exactMinX, exactMaxX, exactMinY, exactMaxY}
 
 	return subRaster, nil
 }
 
-// 辅助函数：确保值在[min, max]范围内
-func clamp(value, min, max int) int {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
 func (f *RasterAdapter) GetDEM(bbox vec2d.Rect, zoom int) (*RasterDouble, error) {
-	// 首先尝试在原始坐标系中处理
 	dem, err := f.generator(bbox, zoom)
 	if err != nil {
-		return nil, fmt.Errorf("DEM generation failed for bbox %v: %w", bbox, err)
+		return nil, fmt.Errorf("DEM generation failed: %w", err)
 	}
 	return dem, nil
 }
 
 func (f *RasterAdapter) Coverage() (geo.Coverage, error) {
 	return f.fullCoverage, nil
+}
+
+// 辅助函数
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

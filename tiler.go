@@ -278,10 +278,19 @@ func (t *TinTiler) getZoomLevels() []int {
 func (t *TinTiler) processTile(task *tileTask) {
 	// 确保即使发生错误也能更新进度
 	processed := atomic.AddInt64(&t.processed, 1)
-	t.config.Progress.Update(int(processed), int(atomic.LoadInt64(&t.totalTasks)))
-
-	// 获取瓦片地理范围
-	tileBBox := t.config.TileGrid.TileBBox([3]int{task.x, task.y, task.zoom}, false)
+	total := atomic.LoadInt64(&t.totalTasks)
+	t.config.Progress.Update(int(processed), int(total))
+	// 详细日志
+	t.config.Progress.Log(fmt.Sprintf(
+		"START Tile z=%d x=%d y=%d (%d/%d)",
+		task.zoom, task.x, task.y, processed, total,
+	))
+	tileCoord := [3]int{task.x, task.y, task.zoom}
+	tileBBox := t.config.TileGrid.TileBBox(tileCoord, false)
+	t.config.Progress.Log(fmt.Sprintf(
+		"Tile z=%d x=%d y=%d bbox: minX=%.6f minY=%.6f maxX=%.6f maxY=%.6f",
+		task.zoom, task.x, task.y, tileBBox.Min[0], tileBBox.Min[1], tileBBox.Max[0], tileBBox.Max[1],
+	))
 
 	// 加载DEM数据
 	dem, err := t.config.Provider.GetDEM(tileBBox, task.zoom)
@@ -290,8 +299,14 @@ func (t *TinTiler) processTile(task *tileTask) {
 		return
 	}
 
+	t.config.Progress.Log(fmt.Sprintf(
+		"DEM loaded: cols=%d rows=%d cellSize=%.2f bounds=%v",
+		dem.Cols(), dem.Rows(), dem.CellSize(), dem.Bounds,
+	))
+
 	// 生成TIN
-	mesh := GenerateTinMesh(dem, t.config.MaxError, &GeoConfig{
+	t.config.Progress.Log("Generating TIN mesh...")
+	_, mesh := GenerateTinMesh(dem, t.config.MaxError, &GeoConfig{
 		SrcProj: t.config.TileGrid.Srs,
 		Datum:   t.config.Datum,
 		Offset:  t.config.Offset,
@@ -309,6 +324,11 @@ func (t *TinTiler) processTile(task *tileTask) {
 	if err := t.config.Exporter.SaveTile(mesh, tilePath); err != nil {
 		t.reportError(fmt.Errorf("保存瓦片失败: %w", err))
 	}
+
+	t.config.Progress.Log(fmt.Sprintf(
+		"COMPLETE Tile z=%d x=%d y=%d",
+		task.zoom, task.x, task.y,
+	))
 }
 
 func (t *TinTiler) reportError(err error) {

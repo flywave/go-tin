@@ -395,7 +395,7 @@ func (m *Mesh) CheckTin() bool {
 
 // 新增OBJ导出方法
 func (m *Mesh) ExportOBJ(filename string, reproj bool) error {
-	srcProj := geo.NewProj(4326) // 当前坐标系
+	srcProj := geo.NewProj(3857) // 当前坐标系
 	dstProj := m.GeoRef.GetSrs() // 目标坐标系（原始坐标系）
 	convert := func(x, y float64) (float64, float64) {
 		pt, _ := transformPoint(srcProj, dstProj, x, y)

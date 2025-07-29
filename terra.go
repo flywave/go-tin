@@ -2,6 +2,8 @@ package tin
 
 import (
 	"container/heap"
+	"fmt"
+	"io"
 	"math"
 
 	"github.com/flywave/go-geo"
@@ -10,16 +12,15 @@ import (
 
 var (
 	EPSG4326 = geo.NewProj(4326)
+	EPSG3857 = geo.NewProj(3857)
 )
 
-// PQ 优先级队列实现（最大堆）
 type PQ []*Candidate
 
 func (pq PQ) Len() int { return len(pq) }
 
 func (pq PQ) Less(i, j int) bool {
-	// 修改为最大堆：重要性大的元素优先
-	return pq[i].Importance > pq[j].Importance
+	return pq[i].Importance < pq[j].Importance
 }
 
 func (pq PQ) Swap(i, j int) {
@@ -29,19 +30,24 @@ func (pq PQ) Swap(i, j int) {
 }
 
 func (pq *PQ) Push(x interface{}) {
-	n := len(*pq)
-	item := x.(*Candidate)
-	item.index = n
-	*pq = append(*pq, item)
+	temp := x.(*Candidate)
+	temp.index = len(*pq)
+	*pq = append(*pq, temp)
+	// st.Slice(*pq, func(i, j int) bool {
+	// 	return (*pq)[i].Importance > (*pq)[j].Importance
+	// })
 }
 
 func (pq *PQ) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	item.index = -1
-	*pq = old[0 : n-1]
-	return item
+	temp := (*pq)[0]
+	temp.index = -1
+	l := len(*pq)
+	if l > 1 {
+		*pq = (*pq)[1:]
+	} else {
+		*pq = PQ{}
+	}
+	return temp
 }
 
 func (pq *PQ) Update(entry *Candidate, importance float64) {
@@ -76,9 +82,7 @@ type CandidateList struct {
 	Candidates PQ
 }
 
-func (cl *CandidateList) Push(candidate *Candidate) {
-	heap.Push(&cl.Candidates, candidate) // 使用heap.Push确保堆性质
-}
+func (cl *CandidateList) Push(candidate *Candidate) { cl.Candidates.Push(candidate) }
 
 func (cl *CandidateList) Size() int { return cl.Candidates.Len() }
 
@@ -86,20 +90,28 @@ func (cl *CandidateList) Empty() bool { return cl.Candidates.Len() == 0 }
 
 func (cl *CandidateList) GrabGreatest() *Candidate {
 	if cl.Empty() {
-		return nil // Return nil instead of empty Candidate
+		return &Candidate{}
 	}
-	return heap.Pop(&cl.Candidates).(*Candidate)
+
+	candidate := cl.Candidates.Pop()
+	return candidate.(*Candidate)
 }
 
 func orderTrianglePoints(p *[3][2]float64) {
 	if p[0][1] > p[1][1] {
-		p[0], p[1] = p[1], p[0]
+		tmp := p[0]
+		p[0] = p[1]
+		p[1] = tmp
 	}
 	if p[1][1] > p[2][1] {
-		p[1], p[2] = p[2], p[1]
+		tmp := p[1]
+		p[1] = p[2]
+		p[2] = tmp
 	}
 	if p[0][1] > p[1][1] {
-		p[0], p[1] = p[1], p[0]
+		tmp := p[0]
+		p[0] = p[1]
+		p[1] = tmp
 	}
 }
 
@@ -166,4 +178,43 @@ func (r *RasterMesh) getElevation(y, x int) float64 {
 	}
 	g := geoid.NewGeoid(r.Datum, false)
 	return g.ConvertHeight(pt[1], pt[0], currentVal, geoid.GEOIDTOELLIPSOID)
+}
+
+// 在RasterMesh结构体下方添加新方法
+func (r *RasterMesh) ExportToPLY(w io.Writer) error {
+	// 写入PLY头部
+	header := fmt.Sprintf(`ply
+format ascii 1.0
+element vertex %d
+property float x
+property float y
+property float z
+end_header
+`, r.Raster.Rows()*r.Raster.Cols())
+
+	if _, err := w.Write([]byte(header)); err != nil {
+		return err
+	}
+
+	// 遍历所有栅格点
+	for y := 0; y < r.Raster.Rows(); y++ {
+		for x := 0; x < r.Raster.Cols(); x++ {
+			// 获取高程值（已包含坐标转换逻辑）
+			z := r.getElevation(y, x)
+
+			// 获取地理坐标
+			xCoord := r.Raster.ColToX(x)
+			yCoord := r.Raster.RowToY(y)
+
+			// 坐标转换（与getElevation保持一致）
+			pt, _ := transformPoint(r.SrcProj, EPSG3857, xCoord, yCoord)
+
+			// 写入顶点数据
+			line := fmt.Sprintf("%f %f %f\n", pt[0], pt[1], z)
+			if _, err := w.Write([]byte(line)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

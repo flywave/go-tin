@@ -1,10 +1,10 @@
 package tin
 
-func GenerateTinMesh(raster *RasterDouble, maxError float64, config *GeoConfig) *Mesh {
+func GenerateTinMesh(raster *RasterDouble, maxError float64, config *GeoConfig) (*ZemlyaMesh, *Mesh) {
 	g := NewZemlyaMesh(config)
 	g.LoadRaster(raster)
 	g.GreedyInsert(maxError)
-	return g.ToMesh()
+	return g, g.ToMesh()
 }
 
 type TileMaker struct {

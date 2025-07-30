@@ -264,21 +264,6 @@ func (r *Raster) West() float64 {
 	return r.Bounds[3]
 }
 
-func (r *Raster) Resolution() (resX, resY float64) {
-	if r.cellsize > 0 {
-		return r.cellsize, r.cellsize
-	}
-
-	// 如果cellsize未设置，则通过边界和行列数计算
-	cols := r.Cols()
-	rows := r.Rows()
-	if cols > 0 && rows > 0 {
-		resX = (r.East() - r.West()) / float64(cols)
-		resY = (r.North() - r.South()) / float64(rows)
-	}
-	return
-}
-
 func (r *Raster) Value(row, column int) interface{} {
 	switch t := r.Data.(type) {
 	case []int8:

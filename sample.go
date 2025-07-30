@@ -263,10 +263,10 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 	endRow := math.Ceil((originBBox.Max[1] - intersect.Min[1]) / math.Abs(cellsize))
 
 	// 添加1个像元重叠
-	overlap := 1.0
-	startCol = math.Max(0, startCol-overlap)
+	overlap := 0.0
+	startCol = math.Max(0, startCol)
 	endCol = math.Min(float64(origin.Cols()), endCol+overlap)
-	startRow = math.Max(0, startRow-overlap)
+	startRow = math.Max(0, startRow)
 	endRow = math.Min(float64(origin.Rows()), endRow+overlap)
 
 	// 转换为整数索引 (扩大范围确保覆盖)
@@ -309,7 +309,7 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 
 		// 重新计算精确边界
 		exactMaxX = originBBox.Min[0] + float64(endColInt)*cellsize
-		exactMinY = originBBox.Max[1] - float64(endRowInt)*math.Abs(cellsize)
+		exactMinY = originBBox.Max[1] - float64(endRowInt)*cellsize
 
 		// 更新子网格尺寸
 		subCols = endColInt - startColInt
@@ -332,13 +332,14 @@ func (f *RasterAdapter) generator(bbox vec2d.Rect, zoom int) (*RasterDouble, err
 
 		copy(newData[dstStart:dstStart+subCols], dataSlice[srcStart:srcEnd])
 	}
+	const epsilon = 1e-3 // 用于处理浮点数精度的容差值
 
 	// 创建子栅格
 	subRaster := NewRasterDoubleWithData(subRows, subCols, newData)
 	subRaster.SetXYPos(
-		exactMinX, // 左下角X
-		exactMinY, // 左下角Y (修复坐标计算)
-		cellsize,  // 分离的分辨率
+		exactMinX,        // 左下角X
+		exactMinY,        // 左下角Y (修复坐标计算)
+		cellsize+epsilon, // 分离的分辨率
 	)
 	subRaster.NoData = origin.NoData
 	subRaster.Bounds = [4]float64{exactMinX, exactMaxX, exactMinY, exactMaxY}

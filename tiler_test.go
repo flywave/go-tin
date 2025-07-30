@@ -21,7 +21,7 @@ func TestTINTiler(t *testing.T) {
 		MinZoom:     15,
 		MaxZoom:     18,
 		Concurrency: 2,
-		MaxError:    10,
+		MaxError:    1,
 		AutoZoom:    true,
 		Provider:    NewRasterAdapter(tileGrid, coverage, dem),
 		Exporter:    &OBJTileExporter{},

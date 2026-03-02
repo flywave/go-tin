@@ -28,3 +28,5 @@ replace github.com/flywave/go-geos => ../go-geos
 replace github.com/flywave/go-geoid => ../go-geoid
 
 replace github.com/flywave/go-proj => ../go-proj
+
+replace github.com/flywave/go-geom => ../go-geom
